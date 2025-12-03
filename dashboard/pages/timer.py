@@ -4,6 +4,7 @@ import numpy as np
 from utilities import init, run_query,sidebar_setup
 from datetime import datetime,timedelta
 import plotly.express as px
+import plotly.graph_objects as go
 
 init()
 
@@ -62,18 +63,36 @@ with hours:
                                    "antall_enheter":"{:,.0f}"}),use_container_width=True,height=700)
 st.divider()
 season = st.container()
-with season:
-    line_data = df_raw.set_index('dato').resample('ME')[["kostnad","timer","antall_enheter"]].sum().reset_index()
-    fig = px.line(
-        line_data,
-        x="dato",
-        y=["kostnad"])
 
+datas = [run_query(f'SELECT * FROM genf.sesong_{season}') for season in ["24_25", "25_26"]]
+line_datas = []
+for data in datas:
+    data['dato'] = pd.to_datetime(data['dato'], errors='coerce', utc=True)
+    line_data = data.set_index('dato').resample('ME')[["kostnad","timer","antall_enheter"]].sum().reset_index()
+    line_data["kostnad_cumsum"] = line_data["kostnad"].cumsum()
+    line_data["timer_cumsum"] = line_data["timer"].cumsum()
+    line_data["month"] = line_data["dato"].dt.month
+    line_datas.append(line_data)
+
+with season:
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=line_datas[0]["month"],
+        y=line_datas[0]["kostnad_cumsum"],
+        mode="lines", 
+        name="24/25"
+    ))
+    fig.add_trace(go.Scatter(
+        x=line_datas[1]["month"],
+        y=line_datas[1]["kostnad_cumsum"],
+        mode="lines",   
+        name="25/26"
+    ))
     fig.update_layout(
         title="Utvikling over sesongen",
-        xaxis_title="Dato",
-        yaxis_title="Sum per måned",
-        legend_title="Metrikker",
+        xaxis_title="Måned",
+        yaxis_title="Kostnad (NOK)",
         hovermode="x unified",
+        xaxis=dict(type='category')
     )
     st.plotly_chart(fig, use_container_width=True)
