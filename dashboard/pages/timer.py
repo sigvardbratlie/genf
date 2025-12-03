@@ -31,6 +31,9 @@ delta_df = df_raw.loc[
     (df_raw['dato'] >= pd.to_datetime(delta_start, utc=True)) &
     (df_raw['dato'] < pd.to_datetime(st.session_state.dates[0], utc=True))
     ].copy()
+
+
+
 with hours:
     cols = st.columns(3)
     cols[0].metric(label = "Total antall timer", value = f"{df['timer'].sum():,.0f}", 

@@ -30,7 +30,7 @@ pie_data = data.loc[data.index != "Total","Total Cost (NOK)"]
 fig = px.pie(pie_data, 
              values="Total Cost (NOK)", 
              names=pie_data.index, 
-             title="Cost Distribution by Role",
+             #title="Cost Distribution by Role",
              color_discrete_sequence=px.colors.sequential.RdBu,
              #textinfo = "label+value"
              )
@@ -60,6 +60,7 @@ GROUP BY navn,rolle
 status = run_query(query_status)
 g = status.groupby("rolle").agg({"navn":"count","earned":"sum","goal":"sum"}).reset_index()
 
+st.markdown(f"## Opptjent vs Mål per rolle for sesong {st.session_state.sesong}")
 fig = go.Figure()
 fig.add_trace(go.Bar(
     x=g["rolle"],
