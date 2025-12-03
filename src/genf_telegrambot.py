@@ -1,7 +1,7 @@
 import pandas as pd
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-
+import os
 from GENF import GENF
 
 
@@ -50,7 +50,7 @@ class TelegramBot:
 def main():
 
     bot = TelegramBot()
-    token = '7405835573:AAFaCaf0-QbJ1KmHArEg8AqsvkZ-O1eNtqk'
+    token = os.getenv('TELEGRAM_BOT_TOKEN')
     application = Application.builder().token(token).build()
 
     # Add handlers
