@@ -28,7 +28,7 @@ def run_query(query):
     return df
 
 
-def sidebar_setup(disable_datepicker = False):
+def sidebar_setup(disable_datepicker = False,disable_rolepicker = False):
     with st.sidebar:
         st.page_link(page="main.py", label="🏠 Home")
         st.page_link("pages/timer.py", label = "Timer", icon="⏰")
@@ -76,11 +76,11 @@ def sidebar_setup(disable_datepicker = False):
                 st.error("End date must be after start date.")
             else:
                 st.error("Invalid date selection.")
-
-        
         
         role = st.pills("Select Role", options = ["GEN-F", "Hjelpementor", "Mentor"], 
-                        default = ["GEN-F", "Hjelpementor", "Mentor"], selection_mode = "multi")
+                        default = ["GEN-F", "Hjelpementor", "Mentor"], 
+                        selection_mode = "multi",
+                        disabled=disable_rolepicker)
         if role:
             st.session_state.role = role
 
