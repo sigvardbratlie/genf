@@ -51,7 +51,7 @@ def sidebar_setup(disable_datepicker = False):
                        calendar.month_name[datetime.today().month-3]]
             custom_date = st.radio("Velg forhåndsdefinert daterange", 
                                    options = choices , 
-                                   index = None, 
+                                   index = 0, 
                                    horizontal=True,
                                    disabled=disable_datepicker)
             if custom_date:
@@ -87,4 +87,15 @@ def sidebar_setup(disable_datepicker = False):
         clear = st.button("Clear Filters")
         if clear:
             st.session_state.clear()
+            st.rerun()
+
+
+def ensure_login():
+    if not st.user or not st.user.is_logged_in:
+        st.warning("Please log in to access the dashboard.")
+        if st.button("Log in"):
+            st.login()
+    else:
+        if st.button("Log out"):
+            st.logout()
             st.rerun()

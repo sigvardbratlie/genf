@@ -8,16 +8,24 @@ import plotly.express as px
 init()
 
 st.title("Timer og lønn")
-st.markdown(f"## Viser timer og lønn for periode {st.session_state.dates[0]} til {st.session_state.dates[1]}")
 st.divider()
 sidebar_setup()
+
+
 
 query_timer =f"""SELECT * 
 FROM genf.sesong_{st.session_state.sesong.replace("/","_")}
 """
 df_raw = run_query(query_timer)
 df_raw['dato'] = pd.to_datetime(df_raw['dato'],errors='coerce',utc=True)
+
+sel_cols = st.columns(3)
+
+every_sample = sel_cols[0].toggle("Vis alle rader (kan være mange rader)", value=False)
+name = sel_cols[1].multiselect("Velg navn (tom for alle)", options=df_raw["navn"].unique().tolist(), default=[])
     
+st.info(f"Viser timer og lønn for periode {st.session_state.dates[0]} til {st.session_state.dates[1]}")
+
 df = df_raw.loc[
     (df_raw['dato'] >= pd.to_datetime(st.session_state.dates[0], utc=True)) &
     (df_raw['dato'] <= pd.to_datetime(st.session_state.dates[1], utc=True))
@@ -33,7 +41,6 @@ delta_df = df_raw.loc[
     ].copy()
 
 
-
 with hours:
     cols = st.columns(3)
     cols[0].metric(label = "Total antall timer", value = f"{df['timer'].sum():,.0f}", 
@@ -43,11 +50,17 @@ with hours:
     cols[2].metric(label = "Antall unike brukere", value = f"{df['navn'].nunique():,.0f}",
                    delta = f"{df['navn'].nunique() - delta_df['navn'].nunique():,.0f} fra forrige periode")
 
-    dfg = df.groupby(["navn","rolle"])[["kostnad","timer","antall_enheter"]].sum().reset_index()
+    if name:
+        df = df[df["navn"].isin(name)]
+    if not every_sample:
+        dfg = df.groupby(["navn","rolle"])[["kostnad","timer","antall_enheter"]].sum().reset_index()
+    else:
+        dfg = df[["navn","rolle","kostnad","timer","antall_enheter","dato"]].copy()
+    st.divider()
     st.dataframe(dfg.style.format({"kostnad":"{:,.0f} NOK",
-                                   "timer":"{:,.0f}",
+                                   "timer":"{:,.1f}",
                                    "antall_enheter":"{:,.0f}"}),use_container_width=True,height=700)
-    
+st.divider()
 season = st.container()
 with season:
     line_data = df_raw.set_index('dato').resample('ME')[["kostnad","timer","antall_enheter"]].sum().reset_index()
