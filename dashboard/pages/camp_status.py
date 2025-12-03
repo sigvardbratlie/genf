@@ -6,7 +6,8 @@ import plotly.graph_objects as go
 init()
 
 st.title("Camp status")
-sidebar_setup(disable_datepicker=True) 
+sidebar_setup(disable_datepicker=True, 
+              disable_rolepicker=True) 
 
 
 # ========================
