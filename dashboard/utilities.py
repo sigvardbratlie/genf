@@ -1,8 +1,9 @@
 import streamlit as st
 from google.oauth2 import service_account
 from google.cloud import bigquery
-from datetime import datetime
+from datetime import datetime,timedelta
 import calendar
+import pandas as pd
 
 start_date  = "2025-01-01"
 end_date    = datetime.today().date().isoformat()
@@ -37,26 +38,29 @@ def sidebar_setup(disable_datepicker = False,disable_rolepicker = False):
         sesong = st.radio("Select Season", ["24/25" , "25/26"], index=1)
         if sesong:
             st.session_state.sesong = sesong
-
-        if sesong == "24/25":
-            start_date = "2024-08-01"
-            end_date = "2025-06-30"
-        elif sesong == "25/26":
-            start_date = "2025-08-01"
-            end_date = datetime.today().date().isoformat()
+            if sesong == "24/25":
+                start_date = "2024-08-01"
+                end_date = "2025-06-30"
+                st.session_state.dates = (start_date, end_date)
+            elif sesong == "25/26":
+                start_date = "2025-08-01"
+                end_date = datetime.today().date().isoformat()
+                st.session_state.dates = (start_date, end_date)
 
         with st.expander("Custom Date Range"):
-            choices = [calendar.month_name[datetime.today().month-1],
-                       calendar.month_name[datetime.today().month-2],
-                       calendar.month_name[datetime.today().month-3]]
+            choices = []
+            for i in range(4):
+                d = pd.Timestamp.today() - pd.DateOffset(months=i+1)
+                choices.append(f"{calendar.month_name[d.month]} {d.year}")
+
             custom_date = st.radio("Velg forhåndsdefinert daterange", 
                                    options = choices , 
-                                   index = 0, 
+                                   index = None, 
                                    horizontal=True,
                                    disabled=disable_datepicker)
             if custom_date:
-                month = list(calendar.month_name).index(custom_date)
-                year = datetime.today().year
+                month = list(calendar.month_name).index(custom_date.split(" ")[0])
+                year = int(custom_date.split(" ")[1])
                 first_day = datetime(year=year, month=month, day=1).date()
                 last_day = datetime(year=year, month=month, day=calendar.monthrange(year, month)[1]).date()
                 st.session_state.dates = (first_day, last_day)
