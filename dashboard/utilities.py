@@ -22,24 +22,27 @@ def init():
     st.session_state.setdefault("sesong", "25/26")
     
 
-@st.cache_data(ttl=1200)
-def run_query(query):
+@st.cache_data(ttl=3600,show_spinner=False)
+def run_query(query,spinner_message="Running query..."):
     query_job = st.session_state.client.query(query)
-    df = query_job.result().to_dataframe()
+    with st.spinner(spinner_message):
+        df = query_job.result().to_dataframe()
     return df
 
-def season_picker(default = 1,disable_seasonpicker = False):
-    sesong = st.radio("Select Season", ["24/25" , "25/26"], index=default, disabled=disable_seasonpicker)
+def season_picker(default = 0,disable_seasonpicker = False):
+    sesong = st.radio("Select Season", ["25/26","24/25","23/24","22/23"], index=default, disabled=disable_seasonpicker)
     if sesong:
         st.session_state.sesong = sesong
-        if sesong == "24/25":
-            start_date = "2024-08-01"
-            end_date = "2025-06-30"
-            st.session_state.dates = (start_date, end_date)
-        elif sesong == "25/26":
+        if sesong == "25/26":
             start_date = "2025-08-01"
             end_date = datetime.today().date().isoformat()
+            st.session_state.dates = (start_date, end_date)   
+        else:
+            years = sesong.split("/")
+            start_date = f"20{years[0]}-08-01"
+            end_date = f"20{years[1]}-06-30"
             st.session_state.dates = (start_date, end_date)
+            
 
 def custom_dates_picker(disable_datepicker = False):
     with st.expander("Custom Date Range",expanded = True):
@@ -60,6 +63,7 @@ def custom_dates_picker(disable_datepicker = False):
             last_day = datetime(year=year, month=month, day=calendar.monthrange(year, month)[1]).date()
             st.session_state.dates = (first_day, last_day)
 def date_picker(disable_datepicker = False):
+    
     dates = st.date_input("Select Date Range",
                                 value=st.session_state.dates if isinstance(st.session_state.dates, tuple) and all(st.session_state.dates) else (start_date, end_date),
                                 min_value="2021-01-01",
@@ -88,7 +92,8 @@ def sidebar_setup(disable_datepicker = False,disable_rolepicker = False,disable_
     with st.sidebar:
         st.page_link(page="main.py", label="🏠 Home")
         st.page_link("pages/timer.py", label = "Timer", icon="⏰")
-        st.page_link("pages/camp_status.py", label = "Camp Status", icon="🏕️")
+        st.page_link("pages/seasonal_review.py", label = "Seasonal Review", icon="🏕️")
+        st.page_link("pages/yearly_review.py", label = "Yearly Review", icon="📊")
 
         season_picker(disable_seasonpicker=disable_seasonpicker)
         custom_dates_picker(disable_datepicker=disable_datepicker)

@@ -5,10 +5,30 @@ import plotly.graph_objects as go
 
 init()
 
-st.title("Camp status")
+st.title("Seasonal Review")
 sidebar_setup(disable_datepicker=True, 
               disable_rolepicker=True) 
 
+
+
+prices = run_query("SELECT * FROM genf.priser")
+camp_prices = run_query("SELECT * FROM genf.camp_priser")
+
+def get_camp_price_season(df ,sesong : str,u18: bool = True):
+    if u18:
+        prefix = "u"
+    else:
+        prefix = "o"
+    years = sesong.split("/")
+    year1 = int("20" + years[0])
+    year2 = int("20" + years[1])
+    y1_price =  camp_prices.loc[df['year'] == year1, f"{prefix}18_nc"].sum()
+    y2_price =  df.loc[df['year'] == year2, [f"{prefix}18_pc",f"{prefix}18_sc"]].sum().sum()
+    price = y1_price + y2_price
+    return price
+prices["camp_u18"] = prices['sesong'].apply(lambda x: get_camp_price_season(df=camp_prices, sesong=x, u18=True))
+prices["camp_o18"] = prices['sesong'].apply(lambda x: get_camp_price_season(df=camp_prices, sesong=x, u18=False))
+st.dataframe(prices)
 
 # ========================
 # Camp Status Opptjent vs Mål
@@ -25,25 +45,19 @@ with opptjent:
     navn,
     rolle,
     SUM(s.kostnad) AS earned,
-    CASE
-      WHEN s.rolle IN ("genf", "hjelpementor") 
-        THEN (SELECT p.PCU18 + p.SCU18 + p.NCU18 FROM pris p)
-      ELSE 
-        (SELECT p.PCO18 + p.SCO18 + p.NCO18 FROM pris p)
-    END AS goal
   FROM genf.sesong_{st.session_state.sesong.replace("/", "_")} s
   GROUP BY navn,rolle
   '''
   status = run_query(query_status)
-  g = status.groupby("rolle").agg({"navn":"count","earned":"sum","goal":"sum"}).reset_index()
+  g = status.groupby("rolle").agg({"navn":"count","earned":"sum",}).reset_index()
   st.markdown(f"## Opptjent vs Mål per rolle for sesong {st.session_state.sesong}")
   fig = go.Figure()
-  fig.add_trace(go.Bar(
-      x=g["rolle"],
-      y=g["goal"],
-      name='Mål',
-      marker_color='indianred'
-  ))
+  # fig.add_trace(go.Bar(
+  #     x=g["rolle"],
+  #     y=g["goal"],
+  #     name='Mål',
+  #     marker_color='indianred'
+  # ))
   fig.add_trace(go.Bar(
       x=g["rolle"],
       y=g["earned"],

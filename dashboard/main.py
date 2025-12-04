@@ -33,7 +33,8 @@ col1, col2 = st.columns([1, 4])
 with col1:
     st.markdown("## 🏕️")
 with col2:
-    st.page_link("pages/camp_status.py", label="Camp Status", icon="🏕️")
+    st.page_link("pages/seasonal_review.py", label="Seasonal Review", icon="🏕️")
+    st.page_link("pages/yearly_review.py", label = "Yearly Review", icon="📊")
     st.markdown("""
     Oversikt over camp-status og måloppnåelse:
     - Opptjent vs mål per rolle
