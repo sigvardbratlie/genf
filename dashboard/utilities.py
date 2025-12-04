@@ -28,66 +28,73 @@ def run_query(query):
     df = query_job.result().to_dataframe()
     return df
 
+def season_picker(default = 1,disable_seasonpicker = False):
+    sesong = st.radio("Select Season", ["24/25" , "25/26"], index=default, disabled=disable_seasonpicker)
+    if sesong:
+        st.session_state.sesong = sesong
+        if sesong == "24/25":
+            start_date = "2024-08-01"
+            end_date = "2025-06-30"
+            st.session_state.dates = (start_date, end_date)
+        elif sesong == "25/26":
+            start_date = "2025-08-01"
+            end_date = datetime.today().date().isoformat()
+            st.session_state.dates = (start_date, end_date)
 
-def sidebar_setup(disable_datepicker = False,disable_rolepicker = False):
-    with st.sidebar:
-        st.page_link(page="main.py", label="🏠 Home")
-        st.page_link("pages/timer.py", label = "Timer", icon="⏰")
-        st.page_link("pages/camp_status.py", label = "Camp Status", icon="🏕️")
+def custom_dates_picker(disable_datepicker = False):
+    with st.expander("Custom Date Range",expanded = True):
+        choices = []
+        for i in range(4):
+            d = pd.Timestamp.today() - pd.DateOffset(months=i+1)
+            choices.append(f"{calendar.month_name[d.month]} {d.year}")
 
-        sesong = st.radio("Select Season", ["24/25" , "25/26"], index=1)
-        if sesong:
-            st.session_state.sesong = sesong
-            if sesong == "24/25":
-                start_date = "2024-08-01"
-                end_date = "2025-06-30"
-                st.session_state.dates = (start_date, end_date)
-            elif sesong == "25/26":
-                start_date = "2025-08-01"
-                end_date = datetime.today().date().isoformat()
-                st.session_state.dates = (start_date, end_date)
-
-        with st.expander("Custom Date Range",expanded = True):
-            choices = []
-            for i in range(4):
-                d = pd.Timestamp.today() - pd.DateOffset(months=i+1)
-                choices.append(f"{calendar.month_name[d.month]} {d.year}")
-
-            custom_date = st.radio("Velg forhåndsdefinert daterange", 
-                                   options = choices , 
-                                   index = None, 
-                                   horizontal=True,
-                                   disabled=disable_datepicker)
-            if custom_date:
-                month = list(calendar.month_name).index(custom_date.split(" ")[0])
-                year = int(custom_date.split(" ")[1])
-                first_day = datetime(year=year, month=month, day=1).date()
-                last_day = datetime(year=year, month=month, day=calendar.monthrange(year, month)[1]).date()
-                st.session_state.dates = (first_day, last_day)
-
-        dates = st.date_input("Select Date Range",
+        custom_date = st.radio("Velg forhåndsdefinert daterange", 
+                                options = choices , 
+                                index = None, 
+                                horizontal=True,
+                                disabled=disable_datepicker)
+        if custom_date:
+            month = list(calendar.month_name).index(custom_date.split(" ")[0])
+            year = int(custom_date.split(" ")[1])
+            first_day = datetime(year=year, month=month, day=1).date()
+            last_day = datetime(year=year, month=month, day=calendar.monthrange(year, month)[1]).date()
+            st.session_state.dates = (first_day, last_day)
+def date_picker(disable_datepicker = False):
+    dates = st.date_input("Select Date Range",
                                 value=st.session_state.dates if isinstance(st.session_state.dates, tuple) and all(st.session_state.dates) else (start_date, end_date),
                                 min_value="2021-01-01",
                                 max_value=datetime.today().date(),
                                 disabled=disable_datepicker
                                 )
-        if len(dates) == 2 and dates[1]>=dates[0]:
-                st.session_state.dates = dates
+    if len(dates) == 2 and dates[1]>=dates[0]:
+            st.session_state.dates = dates
+    else:
+        if len(dates) != 2:
+            st.error("Please select both start and end dates.")
+        elif dates[1]<dates[0]:
+            st.error("End date must be after start date.")
         else:
-            if len(dates) != 2:
-                st.error("Please select both start and end dates.")
-            elif dates[1]<dates[0]:
-                st.error("End date must be after start date.")
-            else:
-                st.error("Invalid date selection.")
-        
-        role = st.pills("Select Role", options = ["GEN-F", "Hjelpementor", "Mentor"], 
+            st.error("Invalid date selection.")
+def role_picker(disable_rolepicker = False):
+    role = st.pills("Select Role", options = ["GEN-F", "Hjelpementor", "Mentor"], 
                         default = ["GEN-F", "Hjelpementor", "Mentor"], 
                         selection_mode = "multi",
                         disabled=disable_rolepicker)
-        if role:
-            st.session_state.role = role
+    if role:
+        st.session_state.role = role
 
+
+def sidebar_setup(disable_datepicker = False,disable_rolepicker = False,disable_seasonpicker = False):
+    with st.sidebar:
+        st.page_link(page="main.py", label="🏠 Home")
+        st.page_link("pages/timer.py", label = "Timer", icon="⏰")
+        st.page_link("pages/camp_status.py", label = "Camp Status", icon="🏕️")
+
+        season_picker(disable_seasonpicker=disable_seasonpicker)
+        custom_dates_picker(disable_datepicker=disable_datepicker)
+        date_picker(disable_datepicker=disable_datepicker)
+        role_picker(disable_rolepicker=disable_rolepicker)
+        
         clear = st.button("Clear Filters")
         if clear:
             st.session_state.clear()

@@ -23,7 +23,7 @@ df_raw['dato'] = pd.to_datetime(df_raw['dato'],errors='coerce',utc=True)
 sel_cols = st.columns(2)
 
 name = sel_cols[0].multiselect("Velg navn (tom for alle)", options=df_raw["navn"].unique().tolist(), default=[])
-every_sample = sel_cols[1].toggle("Vis alle rader (kan være mange rader)", value=False)
+every_sample = sel_cols[1].toggle("Skru av sammenslåing", value=False)
 
 sel_cols2 = st.columns(2)
 gruppe = sel_cols2[0].multiselect("Velg gruppe (tom for alle)", options=df_raw["gruppe"].unique().tolist(), default=[])
