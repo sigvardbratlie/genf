@@ -25,8 +25,8 @@ def init():
 @st.cache_data(ttl=3600,show_spinner=False)
 def run_query(query,spinner_message="Running query..."):
     query_job = st.session_state.client.query(query)
-    with st.spinner(spinner_message):
-        df = query_job.result().to_dataframe()
+    #with st.spinner(spinner_message):
+    df = query_job.result().to_dataframe()
     return df
 
 def season_picker(default = 0,disable_seasonpicker = False):
@@ -105,6 +105,29 @@ def sidebar_setup(disable_datepicker = False,disable_rolepicker = False,disable_
             st.session_state.clear()
             st.rerun()
 
+
+def load_all_seasons():
+    tables = ["sesong_22_23","sesong_23_24","sesong_24_25","sesong_25_26"]
+    dfs = []
+
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+
+    for i, table in enumerate(tables):
+        status_text.text(f"Loading {table}...")
+        df = run_query(f"SELECT * FROM genf.{table}",spinner_message=None)
+        df["season"] = table.replace("sesong_","").replace("_","/")
+        dfs.append(df)
+        progress_bar.progress((i + 1) / len(tables))
+
+    status_text.text("Done!")
+    progress_bar.empty()
+    status_text.empty()
+
+    df = pd.concat(dfs, ignore_index=True)
+    df['dato'] = pd.to_datetime(df['dato'], utc=True)
+    df.sort_values(by="dato", inplace=True)
+    return df
 
 def ensure_login():
     if not st.user or not st.user.is_logged_in:

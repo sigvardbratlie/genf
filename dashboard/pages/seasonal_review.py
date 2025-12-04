@@ -1,4 +1,4 @@
-from utilities import run_query,init, sidebar_setup
+from utilities import run_query,init, sidebar_setup, load_all_seasons
 import pandas as pd
 import streamlit as st
 import plotly.express as px
@@ -36,16 +36,9 @@ prices["camp_o18"] = prices['sesong'].apply(lambda x: get_camp_price_season(df=c
 # ========================
 #      Load Data
 # ========================
-tables = ["sesong_22_23","sesong_23_24","sesong_24_25","sesong_25_26",]
-dfs = []
-for table in tqdm.tqdm(tables):
-    df = run_query(f"SELECT * FROM genf.{table}",spinner_message=f"Loading {table}...")
-    df["season"] = table.replace("sesong_","").replace("_","/")
-    dfs.append(df)
-df = pd.concat(dfs, ignore_index=True)
-df['dato'] = pd.to_datetime(df['dato'], utc=True)
-#df = df.loc[df["dato"].dt.year >= 2023]
-df.sort_values(by = "dato", inplace=True)
+
+
+df = load_all_seasons()
 
 map_role = {"GEN-F":"genf","Hjelpementor":"hjelpementor","Mentor":"mentor"}
 roles = [map_role[role] for role in st.session_state.role if role in map_role]
@@ -59,11 +52,12 @@ data = data.groupby(["navn","season","rolle"]).agg({
 #   Filter Inactive Members
 # ========================
 filter_inactive = st.toggle("Filter Inactive Members", value=False)
+st.markdown("Medlemmer som har jobbet for mindre enn 1000kr i løpet av en sesong regnes som inaktive.")
 if filter_inactive:
     bar_data = data.loc[data["kostnad"] > 1000,:].copy()
 else:
     bar_data = data.copy()
-
+st.divider()
 
 # ========================
 #        BAR PLOT   
