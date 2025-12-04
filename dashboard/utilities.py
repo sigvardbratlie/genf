@@ -47,7 +47,7 @@ def sidebar_setup(disable_datepicker = False,disable_rolepicker = False):
                 end_date = datetime.today().date().isoformat()
                 st.session_state.dates = (start_date, end_date)
 
-        with st.expander("Custom Date Range"):
+        with st.expander("Custom Date Range",expanded = True):
             choices = []
             for i in range(4):
                 d = pd.Timestamp.today() - pd.DateOffset(months=i+1)

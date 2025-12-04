@@ -20,16 +20,22 @@ FROM genf.sesong_{st.session_state.sesong.replace("/","_")}
 df_raw = run_query(query_timer)
 df_raw['dato'] = pd.to_datetime(df_raw['dato'],errors='coerce',utc=True)
 
-sel_cols = st.columns(3)
+sel_cols = st.columns(2)
 
-every_sample = sel_cols[0].toggle("Vis alle rader (kan være mange rader)", value=False)
-name = sel_cols[1].multiselect("Velg navn (tom for alle)", options=df_raw["navn"].unique().tolist(), default=[])
+name = sel_cols[0].multiselect("Velg navn (tom for alle)", options=df_raw["navn"].unique().tolist(), default=[])
+every_sample = sel_cols[1].toggle("Vis alle rader (kan være mange rader)", value=False)
+
+sel_cols2 = st.columns(2)
+gruppe = sel_cols2[0].multiselect("Velg gruppe (tom for alle)", options=df_raw["gruppe"].unique().tolist(), default=[])
+prosjekt = sel_cols2[1].multiselect("Velg prosjekt (tom for alle)", options=df_raw["prosjekt"].unique().tolist(), default=[])
     
 st.info(f"Viser timer og lønn for periode {st.session_state.dates[0]} til {st.session_state.dates[1]}")
 
 df = df_raw.loc[
     (df_raw['dato'] >= pd.to_datetime(st.session_state.dates[0], utc=True)) &
-    (df_raw['dato'] <= pd.to_datetime(st.session_state.dates[1], utc=True))
+    (df_raw['dato'] <= pd.to_datetime(st.session_state.dates[1], utc=True)) & 
+    (df_raw['gruppe'].isin(gruppe) if gruppe else True) &
+    (df_raw['prosjekt'].isin(prosjekt) if prosjekt else True)
     ].copy()
 
 hours = st.container(width="stretch")
@@ -54,9 +60,9 @@ with hours:
     if name:
         df = df[df["navn"].isin(name)]
     if not every_sample:
-        dfg = df.groupby(["navn","rolle"])[["kostnad","timer","antall_enheter"]].sum().reset_index()
+        dfg = df.groupby(["navn","epost","kontonr","rolle"])[["kostnad","timer","antall_enheter"]].sum().reset_index()
     else:
-        dfg = df[["navn","rolle","kostnad","timer","antall_enheter","dato"]].copy()
+        dfg = df[["navn","epost","kontonr","rolle","kostnad","timer","antall_enheter","dato",]].copy()
     st.divider()
     st.dataframe(dfg.style.format({"kostnad":"{:,.0f} NOK",
                                    "timer":"{:,.1f}",
