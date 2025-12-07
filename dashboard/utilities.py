@@ -106,6 +106,7 @@ def sidebar_setup(disable_datepicker = False,disable_rolepicker = False,disable_
         st.page_link("pages/timer.py", label = "Timer", icon="⏰")
         st.page_link("pages/seasonal_review.py", label = "Seasonal Review", icon="🏕️")
         st.page_link("pages/yearly_review.py", label = "Yearly Review", icon="📊")
+        st.page_link("pages/members.py", label = "Medlemmer", icon="👥")
 
         #season_picker(disable_seasonpicker=disable_seasonpicker)
         custom_dates_picker(disable_datepicker=disable_datepicker)

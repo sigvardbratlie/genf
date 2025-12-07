@@ -41,3 +41,16 @@ with col2:
     - Fordeling av camp-kostnader per gruppe
     - Visualisering av kostnadsfordeling
     """)
+
+st.divider()
+st.markdown("### Medlemmer")
+col1, col2 = st.columns([1, 4])
+with col1:
+    st.markdown("## 👥")
+with col2:
+    st.page_link("pages/members.py", label = "Medlemmer", icon="👥")
+    st.markdown("""
+    Oversikt over medlemmer:
+    - Liste over alle medlemmer under 16 år
+    - Filtrer på navn og forelder
+    """)
