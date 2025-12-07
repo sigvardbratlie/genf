@@ -68,10 +68,15 @@ def custom_dates_picker(disable_datepicker = False):
                                 horizontal=True,
                                 disabled=disable_datepicker)
         if custom_season:
-            years = custom_season.split("/")
-            start_date = f"20{years[0]}-08-01"
-            end_date = f"20{years[1]}-06-30"
-            st.session_state.dates = (start_date, end_date)
+            if custom_season == "25/26":
+                start_date = "2025-08-01"
+                end_date = datetime.today().date().isoformat()
+                st.session_state.dates = (start_date, end_date)   
+            else:
+                years = custom_season.split("/")
+                start_date = f"20{years[0]}-08-01"
+                end_date = f"20{years[1]}-06-30"
+                st.session_state.dates = (start_date, end_date)
             
 
 def date_picker(disable_datepicker = False):
