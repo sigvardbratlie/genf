@@ -1,4 +1,4 @@
-from utilities import run_query,init, sidebar_setup, load_all_seasons
+from utilities import run_query,init, sidebar_setup, load_all_seasons,map_roles
 import pandas as pd
 import streamlit as st
 import plotly.express as px
@@ -40,9 +40,8 @@ prices["camp_o18"] = prices['sesong'].apply(lambda x: get_camp_price_season(df=c
 
 df = load_all_seasons()
 
-map_role = {"GEN-F":"genf","Hjelpementor":"hjelpementor","Mentor":"mentor"}
-roles = [map_role[role] for role in st.session_state.role if role in map_role]
-data = df.loc[df["rolle"].isin(roles),:].copy()
+
+data = map_roles(df)
 data = data.groupby(["navn","season","rolle"]).agg({
     "kostnad":"sum",
     "timer":"sum",}).reset_index()

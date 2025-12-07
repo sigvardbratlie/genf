@@ -62,6 +62,18 @@ def custom_dates_picker(disable_datepicker = False):
             first_day = datetime(year=year, month=month, day=1).date()
             last_day = datetime(year=year, month=month, day=calendar.monthrange(year, month)[1]).date()
             st.session_state.dates = (first_day, last_day)
+        custom_season = st.radio("Eller velg sesong", 
+                                options = ["25/26","24/25","23/24","22/23"] , 
+                                index = None, 
+                                horizontal=True,
+                                disabled=disable_datepicker)
+        if custom_season:
+            years = custom_season.split("/")
+            start_date = f"20{years[0]}-08-01"
+            end_date = f"20{years[1]}-06-30"
+            st.session_state.dates = (start_date, end_date)
+            
+
 def date_picker(disable_datepicker = False):
     
     dates = st.date_input("Select Date Range",
@@ -95,7 +107,7 @@ def sidebar_setup(disable_datepicker = False,disable_rolepicker = False,disable_
         st.page_link("pages/seasonal_review.py", label = "Seasonal Review", icon="🏕️")
         st.page_link("pages/yearly_review.py", label = "Yearly Review", icon="📊")
 
-        season_picker(disable_seasonpicker=disable_seasonpicker)
+        #season_picker(disable_seasonpicker=disable_seasonpicker)
         custom_dates_picker(disable_datepicker=disable_datepicker)
         date_picker(disable_datepicker=disable_datepicker)
         role_picker(disable_rolepicker=disable_rolepicker)
@@ -128,6 +140,11 @@ def load_all_seasons():
     df['dato'] = pd.to_datetime(df['dato'], utc=True)
     df.sort_values(by="dato", inplace=True)
     return df
+
+def map_roles(df):
+    map_role = {"GEN-F":"genf","Hjelpementor":"hjelpementor","Mentor":"mentor"}
+    roles = [map_role[role] for role in st.session_state.role if role in map_role]
+    return df.loc[df["rolle"].isin(roles),:].copy()
 
 def ensure_login():
     if not st.user or not st.user.is_logged_in:

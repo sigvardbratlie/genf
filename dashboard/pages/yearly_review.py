@@ -1,4 +1,4 @@
-from utilities import run_query,init, sidebar_setup, load_all_seasons
+from utilities import run_query,init, sidebar_setup, load_all_seasons,map_roles
 import pandas as pd
 import streamlit as st
 import plotly.express as px
@@ -38,8 +38,6 @@ st.divider()
 #      Load Data
 # ========================
 df = load_all_seasons()
-
-
 # ========================
 #        BAR PLOT   
 # ========================
@@ -50,9 +48,7 @@ with bar_plot:
     
     hide_camp = st.toggle("Hide Camp Costs", value=False)
 
-    map_role = {"GEN-F":"genf","Hjelpementor":"hjelpementor","Mentor":"mentor"}
-    roles = [map_role[role] for role in st.session_state.role if role in map_role]
-    df_filtered = df.loc[df["rolle"].isin(roles) | df["rolle"].isna()].copy()
+    df_filtered = map_roles(df)
 
     #df_filtered = df
     df_year = df_filtered.groupby([df_filtered['dato'].dt.year, 'gruppe']).agg({'timer':'sum','kostnad':'sum'}).reset_index()
