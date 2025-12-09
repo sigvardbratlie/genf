@@ -1,4 +1,4 @@
-from utilities import run_query,init, sidebar_setup, load_all_seasons,map_roles
+from utilities import run_query,init, sidebar_setup, load_all_seasons,map_roles,load_members
 import pandas as pd
 import streamlit as st
 import plotly.express as px
@@ -10,13 +10,15 @@ from typing import Literal
     
 
 init()
-sidebar_setup(disable_datepicker=True, disable_seasonpicker=True)
+sidebar_setup(disable_datepicker=True, 
+              disable_custom_datepicker=True,
+              )
 
 st.title("Seasonal Review")
 st.divider()
 
-prices = run_query("SELECT * FROM genf.priser")
-camp_prices = run_query("SELECT * FROM genf.camp_priser")
+prices = run_query("SELECT * FROM admin.rates")
+camp_prices = run_query("SELECT * FROM admin.camp_prices")
 
 def get_camp_price_season(df ,sesong : str,u18: bool = True):
     if u18:
@@ -48,23 +50,25 @@ data = data.groupby(["navn","season","rolle"]).agg({
 
 
 # ========================
-#   Filter Inactive Members
-# ========================
-filter_inactive = st.toggle("Filter Inactive Members", value=False)
-st.markdown("Medlemmer som har jobbet for mindre enn 1000kr i løpet av en sesong regnes som inaktive.")
-if filter_inactive:
-    bar_data = data.loc[data["kostnad"] > 1000,:].copy()
-else:
-    bar_data = data.copy()
-st.divider()
-
-# ========================
 #        BAR PLOT   
 # ========================
 
-bar = st.container()
-with bar:
+with st.container():
     st.markdown("## Opptjent vs Mål per Sesong")
+    st.markdown("Sammenligning av opptjent beløp mot målbeløp per sesong, fordelt på roller.")
+    st.markdown("Medlemmer som har jobbet for mindre enn 1000kr i løpet av en sesong regnes som inaktive.")
+    #st.divider()
+
+# ========================
+#   Filter Inactive Members
+# ========================
+    filter_inactive = st.toggle("Filter Inactive Members", value=False)
+    
+    if filter_inactive:
+        bar_data = data.loc[data["kostnad"] > 1000,:].copy()
+    else:
+        bar_data = data.copy()
+    
     for season in prices["sesong"].unique():
         bar_data.loc[(bar_data["rolle"].isin(["genf","hjelpementor"])) & (bar_data["season"] == season), "goal"] = prices.loc[prices["sesong"] == season,"camp_u18"].values[0]
         bar_data.loc[(bar_data["rolle"].isin(["mentor"])) & (bar_data["season"] == season), "goal"] = prices.loc[prices["sesong"] == season,"camp_o18"].values[0]
@@ -115,9 +119,12 @@ with dist:
 members = st.container()
 with members:
     st.markdown("## Active vs Registered Members per Role")
-    if len(roles) < 3:
+    if len(st.session_state.role) < 3:
         st.warning("Select all roles to see Active vs Registered Members visualization.")
     else:
+        n_members = run_query("SELECT season, genf AS n_genf, hjelpementor AS n_hjelpementor, mentor AS n_mentor FROM members.seasonal_count")
+        prices = prices.merge(n_members, left_on="sesong", right_on="season", how="left")
+
         active = data.loc[(data["kostnad"]> 1000),:][["navn","season","rolle"]]
         active = active.groupby(["rolle","season"]).agg({"navn":"count"})
         active = active.reset_index().rename(columns={"navn":"active_members"})

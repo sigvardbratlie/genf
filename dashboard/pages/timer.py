@@ -35,7 +35,7 @@ if not "antall_enheter" in df_raw.columns:
 epost_map = df_raw.dropna(subset=['epost']).set_index('navn')['epost'].to_dict()
 kontonr_map = df_raw.dropna(subset=['kontonr']).set_index('navn')['kontonr'].to_dict()
 df_raw['epost'] = df_raw['epost'].fillna(df_raw['navn'].map(epost_map))
-df_raw['kontonr'] = df_raw['kontonr'].fillna(df_raw['navn'].map(kontonr_map))
+#df_raw['kontonr'] = df_raw['kontonr'].fillna(df_raw['navn'].map(kontonr_map))
 df_raw["antall_enheter"] = df_raw["antall_enheter"].fillna(0)
 
 sel_cols = st.columns(2)

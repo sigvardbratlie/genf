@@ -4,6 +4,7 @@ from google.cloud import bigquery
 from datetime import datetime,timedelta
 import calendar
 import pandas as pd
+from google.api_core.exceptions import NotFound
 
 start_date  = "2025-01-01"
 end_date    = datetime.today().date().isoformat()
@@ -19,7 +20,7 @@ def init():
     st.session_state.setdefault("client", init_client())
     st.session_state.setdefault("dates", (None, None))
     st.session_state.setdefault("role", ["GEN-F", "Hjelpementor", "Mentor"])
-    st.session_state.setdefault("sesong", "25/26")
+    st.session_state.setdefault("season", "25/26")
     
 
 @st.cache_data(ttl=3600,show_spinner=False)
@@ -68,6 +69,7 @@ def custom_dates_picker(disable_datepicker = False):
                                 horizontal=True,
                                 disabled=disable_datepicker)
         if custom_season:
+            st.session_state.season = custom_season
             if custom_season == "25/26":
                 start_date = "2025-08-01"
                 end_date = datetime.today().date().isoformat()
@@ -105,7 +107,7 @@ def role_picker(disable_rolepicker = False):
         st.session_state.role = role
 
 
-def sidebar_setup(disable_datepicker = False,disable_rolepicker = False,disable_seasonpicker = False):
+def sidebar_setup(disable_datepicker = False,disable_rolepicker = False,disable_custom_datepicker = False,):
     with st.sidebar:
         st.page_link(page="main.py", label="🏠 Home")
         st.page_link("pages/timer.py", label = "Timer", icon="⏰")
@@ -114,7 +116,7 @@ def sidebar_setup(disable_datepicker = False,disable_rolepicker = False,disable_
         st.page_link("pages/members.py", label = "Medlemmer", icon="👥")
 
         #season_picker(disable_seasonpicker=disable_seasonpicker)
-        custom_dates_picker(disable_datepicker=disable_datepicker)
+        custom_dates_picker(disable_datepicker=disable_custom_datepicker)
         date_picker(disable_datepicker=disable_datepicker)
         role_picker(disable_rolepicker=disable_rolepicker)
         
@@ -133,7 +135,7 @@ def load_all_seasons():
 
     for i, table in enumerate(tables):
         status_text.text(f"Loading {table}...")
-        df = run_query(f"SELECT * FROM genf.{table}",spinner_message=None)
+        df = run_query(f"SELECT * FROM registrations.{table}",spinner_message=None)
         df["season"] = table.replace("sesong_","").replace("_","/")
         dfs.append(df)
         progress_bar.progress((i + 1) / len(tables))
@@ -151,6 +153,44 @@ def map_roles(df):
     map_role = {"GEN-F":"genf","Hjelpementor":"hjelpementor","Mentor":"mentor"}
     roles = [map_role[role] for role in st.session_state.role if role in map_role]
     return df.loc[df["rolle"].isin(roles),:].copy()
+
+
+def load_members(season):
+    season_year = int("20" + season.split("/")[0])
+    
+    # if datetime.now().month >= 8:
+    #     
+    # else:
+    #     first_year = datetime.now().year - 16
+    
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    dfs = []
+    if season_year >= 2025:
+        first_year = season_year - 17
+        tables = [first_year + i for i in range(0,5)]
+    else:
+        first_year = season_year - 15
+        tables = [first_year + i for i in range(0,3)]
+    for i, year in enumerate(tables):
+        status_text.text(f"Loading members {year}...")
+        try:
+            df = run_query(f"SELECT * FROM members.{year}",)
+            df["season"] = season
+            if i < 2 and season_year >= 2025:
+                df["role"] = "Hjelpementor"
+            else:
+                df["role"] = "GEN-F"
+            dfs.append(df)
+        except NotFound:
+            st.warning(f"Members for year {year} not found in the database.")
+        progress_bar.progress((i + 1) / len(tables))
+
+    status_text.text("Done!")
+    progress_bar.empty()
+    status_text.empty()
+    df = pd.concat(dfs, ignore_index=True)
+    return df
 
 def ensure_login():
     if not st.user or not st.user.is_logged_in:
