@@ -51,6 +51,7 @@ with col2:
     st.page_link("pages/members.py", label = "Medlemmer", icon="👥")
     st.markdown("""
     Oversikt over medlemmer:
-    - Liste over alle medlemmer under 16 år
+    - Liste over alle medlemmer (foreløpig kun U18)
     - Filtrer på navn og forelder
     """)
+    

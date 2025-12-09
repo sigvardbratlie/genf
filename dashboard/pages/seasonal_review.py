@@ -55,17 +55,20 @@ data = data.groupby(["navn","season","rolle"]).agg({
 
 with st.container():
     st.markdown("## Opptjent vs Mål per Sesong")
-    st.markdown("Sammenligning av opptjent beløp mot målbeløp per sesong, fordelt på roller.")
-    st.markdown("Medlemmer som har jobbet for mindre enn 1000kr i løpet av en sesong regnes som inaktive.")
+    st.markdown("Sammenligning av opptjent beløp mot målbeløp per sesong")
+    
     #st.divider()
 
 # ========================
 #   Filter Inactive Members
 # ========================
-    filter_inactive = st.toggle("Filter Inactive Members", value=False)
+    #with st.expander("Filter Inactive Members Settings"):
     
+    filter_inactive = st.toggle("Filter Inactive Members", value=False)
     if filter_inactive:
-        bar_data = data.loc[data["kostnad"] > 1000,:].copy()
+        filter_value = st.slider("Cut-off for Inactive Members (NOK)", min_value=0, max_value=3000, value=500, step=100)
+        st.markdown(f"Medlemmer som har jobbet for mindre enn {filter_value}kr i løpet av en sesong regnes som inaktive.")
+        bar_data = data.loc[data["kostnad"] > filter_value,:].copy()
     else:
         bar_data = data.copy()
     
@@ -99,7 +102,7 @@ dist = st.container()
 with dist:
     st.markdown("## Distribution of Individual Earnings per Season")
     fig = px.histogram(
-        data.loc[data["kostnad"] > 0, :],
+        bar_data,
         x="kostnad", 
         nbins=50, 
         color="season",
@@ -125,7 +128,9 @@ with members:
         n_members = run_query("SELECT season, genf AS n_genf, hjelpementor AS n_hjelpementor, mentor AS n_mentor FROM members.seasonal_count")
         prices = prices.merge(n_members, left_on="sesong", right_on="season", how="left")
 
-        active = data.loc[(data["kostnad"]> 1000),:][["navn","season","rolle"]]
+        if not filter_inactive:
+            filter_value = 1000
+        active = data.loc[(data["kostnad"]> filter_value),:][["navn","season","rolle"]]
         active = active.groupby(["rolle","season"]).agg({"navn":"count"})
         active = active.reset_index().rename(columns={"navn":"active_members"})
 
