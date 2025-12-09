@@ -97,7 +97,7 @@ with st.container():
     st.info("**NB**: Husk å huk av for roller i sidebar. Viser alle roller 'by default'", icon="⚙️")
 
 
-st.dataframe(bar_data.head())
+#st.dataframe(bar_data.head())
 bar_data["difference"] = bar_data["goal"] - bar_data["kostnad"]
 
 st.markdown("## Histogram av Avvik fra Mål per Individ")
