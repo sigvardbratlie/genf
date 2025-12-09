@@ -93,7 +93,7 @@ with st.container():
         marker_color='lightsalmon'
     ))  
     st.plotly_chart(fig, use_container_width=True)
-    st.markdown("Viser kun camp-kostnader for de som har jobbet i løpet av sesongen, ikke faktiske camp-deltakere.")
+    st.markdown("Viser kun oppnåelse av camp-kostnader for de som har jobbet i løpet av sesongen, ikke faktiske camp-deltakere.")
     st.info("**NB**: Husk å huk av for roller i sidebar. Viser alle roller 'by default'", icon="⚙️")
 
 
