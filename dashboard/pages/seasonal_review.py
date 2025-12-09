@@ -93,6 +93,25 @@ with st.container():
         marker_color='lightsalmon'
     ))  
     st.plotly_chart(fig, use_container_width=True)
+    st.markdown("Viser kun camp-kostnader for de som har jobbet i løpet av sesongen, ikke faktiske camp-deltakere.")
+    st.info("**NB**: Husk å huk av for roller i sidebar. Viser alle roller 'by default'", icon="⚙️")
+
+
+st.dataframe(bar_data.head())
+bar_data["difference"] = bar_data["goal"] - bar_data["kostnad"]
+
+st.markdown("## Histogram av Avvik fra Mål per Individ")
+st.markdown("Viser fordelingen av hvor mye hvert individ har tjent i forhold til sitt målbeløp.")
+hue = st.selectbox("Farge etter:", options=["season","rolle"], index=0)
+fig = px.histogram(
+        bar_data,
+        x="difference",
+        nbins=50, 
+        color=hue,
+        barmode="overlay",  # Overlay istedenfor stack
+        opacity=0.6  # Gjennomsiktig
+    )
+st.plotly_chart(fig, use_container_width=True )
 
 
 # ========================
@@ -100,7 +119,7 @@ with st.container():
 # ========================
 dist = st.container()
 with dist:
-    st.markdown("## Distribution of Individual Earnings per Season")
+    st.markdown("## Fordeling av individuelle opptjente beløp per sesong")
     fig = px.histogram(
         bar_data,
         x="kostnad", 

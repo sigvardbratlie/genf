@@ -100,6 +100,8 @@ with bar_plot:
     fig.update_layout(barmode='stack')
     st.plotly_chart(fig)
 
+    st.markdown("NB: Viser kostnader som om alle registrerte medlemmer deltok på camp, uavhengig av faktisk deltakelse.")
+    st.info("**NB**: Husk å huk av for roller i sidebar. Viser alle roller 'by default'", icon="⚙️")
 
 
 
