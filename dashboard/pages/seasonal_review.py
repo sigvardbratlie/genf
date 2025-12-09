@@ -102,7 +102,7 @@ bar_data["difference"] = bar_data["goal"] - bar_data["kostnad"]
 
 st.markdown("## Histogram av Avvik fra Mål per Individ")
 st.markdown("Viser fordelingen av hvor mye hvert individ har tjent i forhold til sitt målbeløp.")
-hue = st.selectbox("Farge etter:", options=["season","rolle"], index=0)
+hue = st.selectbox("Farge etter:", options=["rolle", "season",], index=0)
 fig = px.histogram(
         bar_data,
         x="difference",
