@@ -197,7 +197,7 @@ def load_members(season):
     df = pd.concat(dfs, ignore_index=True)
     return df
 
-@st.cache_data(ttl=600,show_spinner=False)
+
 def fetch_job_logs(
     from_date: Optional[date] = None,
     to_date: Optional[date] = None

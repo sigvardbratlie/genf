@@ -46,7 +46,7 @@ every_sample = sel_cols[1].toggle("Skru av sammenslåing", value=False)
 sel_cols2 = st.columns(2)
 gruppe = sel_cols2[0].multiselect("Velg gruppe (tom for alle)", options=df_raw["gruppe"].unique().tolist(), default=[])
 prosjekt = sel_cols2[1].multiselect("Velg prosjekt (tom for alle)", options=df_raw["prosjekt"].unique().tolist(), default=[])
-    
+
 st.info(f"Viser timer og lønn for periode {st.session_state.dates[0]} til {st.session_state.dates[1]}")
 
 try:

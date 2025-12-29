@@ -15,3 +15,4 @@ ia/
 *json
 config/
 *secrets.toml
+*.csv
