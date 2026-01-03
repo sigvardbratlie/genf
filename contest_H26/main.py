@@ -41,7 +41,30 @@ with tabs[0]:
 # Leaderboard Section
 # ======================
 with tabs[1]:
-    st.markdown("## Leaderboard")
-    query = """
-    SELECT * FROM contest_H26.leaderboard_25_26
-        """
+    st.markdown("## Individual Leaderboard TOP 10")
+    cols = st.columns(2)
+    role = cols[0].pills("Rolle", options = ["GEN-F", "Mentor", "Hjelpementor"], default = ["GEN-F", "Mentor", "Hjelpementor"], selection_mode="multi")
+    view_by = cols[1].radio("Vis etter", ["Timer", "Cash"], index=0, horizontal=True)
+    role_map = {"GEN-F" : "genf", "Mentor": "mentor", "Hjelpementor": "hjelpementor"}
+    role = ", ".join([f"'{role_map[r]}'" for r in role])
+    
+    query = f"""
+            SELECT 
+            display_name AS Navn,
+            rolle as Rolle,
+            SUM(kostnad) AS Cash, 
+            SUM(timer) AS Timer
+            FROM `genf-446213.registrations.sesong_25_26` s
+            JOIN members.all a ON a.email = s.epost
+            WHERE rolle IN ({role})
+            GROUP BY epost,rolle,a.display_name
+            ORDER BY {view_by} DESC 
+            LIMIT 10;"""
+    
+    df_leader = run_query(query).drop_duplicates(subset=["Navn"])
+    df_leader.drop_duplicates(subset=["Navn"],inplace=True)
+    st.dataframe(
+                df_leader.style.format({"Cash": "{:,.0f} kr", "Timer": "{:,.1f}"}), 
+                use_container_width=True,
+                hide_index=True  # <-- LEGG TIL DETTE
+            )
