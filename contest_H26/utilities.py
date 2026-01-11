@@ -217,13 +217,14 @@ def fetch_job_logs(
     if from_date is None or to_date is None:
         #st.write(st.session_state.dates)
         try:
-            from_date = st.session_state.dates[0] if isinstance(st.session_state.dates[0], date) else datetime(st.session_state.dates[0]) 
-            to_date = st.session_state.dates[1] if isinstance(st.session_state.dates[1], date) else datetime(st.session_state.dates[1])
+            from_date = datetime(2025,1,1)
+            to_date = datetime.today()
         except:
             st.warning("Invalid dates in session state, defaulting to no date filter.")
             from_date = None
             to_date = None
 
+    
     params = {"p_api_key": st.session_state.supabase_api_key}
     params["p_from_date"] = from_date.isoformat()
     params["p_to_date"] = to_date.isoformat()
@@ -243,6 +244,8 @@ def fetch_job_logs(
         if hasattr(e, 'message'):
             print(f"Error message: {e.message}")
         raise
+
+
 
 
 

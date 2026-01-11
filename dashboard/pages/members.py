@@ -1,7 +1,9 @@
+from pdb import run
 import streamlit as st
-from utilities import init, sidebar_setup, load_members
+from utilities import init, sidebar_setup, load_members,load_active_users,fetch_profiles
 import pandas as pd
 import plotly.graph_objects as go
+from google.cloud import bigquery
 
 
 init()
@@ -9,13 +11,27 @@ sidebar_setup(disable_datepicker=True, disable_custom_datepicker=False)
 st.title("Medlemmer")
 st.divider()
 
+
 df = load_members(season=st.session_state.season)
 
+filters = st.columns(2)
+with filters[0]:
+    filter_inactive = st.toggle("Filter Inactive Members", value=False)
+    filter_value = st.slider("Cut-off for Inactive Members (NOK)", min_value=0, max_value=3000, value=500, step=100)
+
+filters[1].markdown(f"Medlemmer som har jobbet for mindre enn {filter_value}kr i løpet av en sesong regnes som inaktive.")
+data = load_active_users(threshold=filter_value, season=st.session_state.season)
+df["status"] = df["person_id"].apply(lambda x: "Active" if x in data["person_id"].values else "Inactive")
+if filter_inactive:
+    df = df.loc[df["status"]=="Active"].copy()
+    
 # ====================
 #     MEMBERS
 # ====================
 with st.container():
-    st.markdown(f"# Medlemmer (GEN-F & hjelpementorer) for sesong {st.session_state.season}")
+    st.markdown(f"# GEN-F & hjelpementorer")
+    st.markdown(f"## sesong {st.session_state.season}\n\n")
+    #st.divider()
     sel_cols = st.columns(3)
     name = sel_cols[0].multiselect("Velg navn (tom for alle)", options=df["display_name"].unique().tolist(), default=[])
     year = sel_cols[1].multiselect("Velg fødselsår (tom for alle)", options=sorted(df["birthdate"].dt.year.unique().tolist()), default=[])
@@ -75,3 +91,21 @@ with st.container():
         bargap=0.2,
     )
     st.plotly_chart(fig, use_container_width=True)
+
+
+# ======= UPDATE MEMBERS =======
+st.divider()
+with st.container():
+    st.markdown("## Hent medlemsliste fra buk.cash og oppdater database")
+    data = fetch_profiles()
+    members_bc = pd.DataFrame(data)
+    df_to_save = members_bc[["id","custom_id","email","role","first_name","last_name"]]
+    st.dataframe(df_to_save, use_container_width=True)
+    if st.button("Oppdater medlemsdatabase",icon="🔄"):
+        try:
+            st.session_state.gcp_client.load_table_from_dataframe(df_to_save, "members.buk_cash", 
+                                                        job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE"))
+            st.success("Medlemsdatabase oppdatert fra buk.cash!")
+        except Exception as e:
+            st.error(f"Error updating members database: {e}")
+    

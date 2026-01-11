@@ -1,15 +1,10 @@
 import streamlit as st
-from utilities import init, run_query
+from utilities import init, run_query,fetch_job_logs
+import pandas as pd
 
 init() 
 
 st.title("GEN-F konkurranser 2025/2026!")
-
-# query = """ 
-# SELECT * FROM members.teams_25_26
-# """
-# df_teams = run_query(query)
-
 
 # ====================== 
 # Team Competition Section
@@ -17,6 +12,19 @@ st.title("GEN-F konkurranser 2025/2026!")
 tabs = st.tabs(["Konkurranse", "Leaderboard"])
 with tabs[0]:
     st.markdown("## Lagkonkurranse")
+
+    data = fetch_job_logs()
+    query = """ 
+    SELECT * FROM members.teams_25_26
+    """
+    df_teams = run_query(query)
+    df = pd.merge(data,df_teams, left_on = "worker_id",right_on = "id",  how = "left")
+    st.dataframe(df)
+    dfg = df.groupby("team").agg({"hours_worked":"sum",
+                            #"kostnad":"sum"},
+                            })
+    st.dataframe(dfg)
+
     colors = {
         "blue": "rgba(59, 130, 246, 0.15)",
         "green": "rgba(34, 197, 94, 0.15)", 
@@ -35,6 +43,7 @@ with tabs[0]:
             """,
             unsafe_allow_html=True
         )
+        st.metric(label="Totale timer", value=f"{dfg.loc[team_name, 'hours_worked']:.1f} Poeng")
 
 
 # ======================

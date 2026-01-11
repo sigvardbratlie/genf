@@ -7,7 +7,7 @@ import pandas as pd
 from google.api_core.exceptions import NotFound
 from supabase import create_client, Client
 from datetime import date, datetime, timedelta
-from typing import Optional
+from typing import Optional,Any
 
 start_date  = "2025-01-01"
 end_date    = datetime.today().date().isoformat()
@@ -154,6 +154,15 @@ def load_all_seasons():
     df.sort_values(by="dato", inplace=True)
     return df
 
+def load_active_users(season = "25/26", threshold = 1000):
+    query =  f'''SELECT s.person_id,r.epost 
+            FROM `genf-446213.registrations.sesong_{season.replace("/","_")}` r
+            JOIN members.specs s ON s.email = r.epost
+            GROUP BY r.epost, s.person_id
+            HAVING SUM(kostnad)>{threshold};'''
+    df = run_query(query)
+    return df
+
 def map_roles(df):
     map_role = {"GEN-F":"genf","Hjelpementor":"hjelpementor","Mentor":"mentor"}
     roles = [map_role[role] for role in st.session_state.role if role in map_role]
@@ -244,6 +253,45 @@ def fetch_job_logs(
             print(f"Error message: {e.message}")
         raise
 
+@st.cache_data(ttl=600,show_spinner=False)
+def fetch_profiles() -> list[dict[str, Any]]:
+    """
+    Fetch all user profiles for the organization.
+    
+    API Function: get_profiles_with_api_key(p_api_key text)
+    
+    Returns:
+        List of profile dictionaries with the following fields:
+        - id (uuid): User's unique identifier
+        - first_name (text): User's first name
+        - last_name (text): User's last name
+        - phone (text): User's phone number
+        - role (user_role): User's role ('admin' or 'member')
+        - availability_notes (text): Notes about user availability
+        - created_at (timestamp): Account creation timestamp
+        - updated_at (timestamp): Last update timestamp
+        - organization_id (uuid): Organization identifier
+        - monthly_goal (integer): Monthly work hour goal
+        - date_of_birth (date): User's date of birth
+        - age_category (text): Calculated age category ('U16', 'U18', 'O18')
+        - bank_account_number (text): User's bank account number
+        - custom_id (integer): External system identifier (e.g., legacy person_id)
+        - email (text): User's email address from auth.users
+    
+    Example:
+        profiles = fetch_profiles(supabase, api_key)
+        for profile in profiles:
+            print(f"{profile['first_name']} {profile['last_name']} - Email: {profile.get('email')} - Custom ID: {profile.get('custom_id')}")
+    """
+    try:
+        response = st.session_state.supabase_client.rpc("get_profiles_with_api_key", {
+            "p_api_key": st.session_state.supabase_api_key
+        }).execute()
+        
+        return response.data if response.data else []
+    except Exception as e:
+        print(f"Error fetching profiles: {e}")
+        raise
 
 
 # -----
