@@ -153,7 +153,7 @@ with tabs[1]:
         border: 3px solid #C9B037;
     }
     .silver {
-        background: linear-gradient(135deg, #E8E8E8 0%, #C0C0C0 100%);
+        background: linear-gradient(135deg, #C0C0C0 0%, #a3a3a3 100%);
         border: 3px solid #B4B4B4;
     }
     .bronze {
