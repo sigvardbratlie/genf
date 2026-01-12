@@ -1,0 +1,106 @@
+import streamlit as st
+from utilities import init, run_query,fetch_job_logs
+import pandas as pd
+from streamlit_extras.stylable_container import stylable_container
+import plotly.express as px
+from datetime import datetime
+
+init() 
+
+st.title("GEN-F konkurranser 2025/2026!")
+
+# ====================== 
+# Team Competition Section
+# ======================
+tabs = st.tabs(["Konkurranse", "Leaderboard"])
+with tabs[0]:
+    st.markdown("## Lagkonkurranse")
+    st.markdown(f"Viser for perioden 01.01.2026 - {datetime.now().strftime('%d.%m.%Y')}")
+
+    data = fetch_job_logs()
+    query = """ 
+    SELECT * FROM members.teams_25_26
+    """
+    df_teams = run_query(query)
+    df = pd.merge(data,df_teams, left_on = "worker_id",right_on = "id",  how = "left")
+    #st.dataframe(df)
+    dfg = df.groupby("team").agg({"hours_worked":"sum",
+                            #"kostnad":"sum"},
+                            })
+    avg_hours = dfg["hours_worked"].mean()
+    alpha = 0.4
+    colors = {
+        "blue": f"rgba(59, 130, 246, {alpha})",
+        "green": f"rgba(34, 197, 94, {alpha})", 
+        "orange": f"rgba(249, 115, 22, {alpha})",
+        "pink": f"rgba(236, 72, 153, {alpha})",
+        "yellow": f"rgba(234, 179, 8, {alpha})"
+    }
+
+    # ==== BAR PLOT =====
+    with st.container():
+        dfg_plot = dfg.reset_index()
+        fig = px.bar(dfg_plot, 
+                     x='team', 
+                     y='hours_worked', 
+                     color='team',
+                     color_discrete_map=colors,
+                     labels={'team': 'Lag', 'hours_worked': 'Poeng'},
+                     title='Totale timer jobbet per lag')
+        fig.add_hline(y=avg_hours, line_dash="dash", line_color="red",
+                      annotation_text="Gjennomsnittlige timer",
+                      annotation_position="top left")
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # ==== TEAM METRICS =====
+    with st.container():
+        for i in range(len(colors)):
+            team_name = list(colors.keys())[i]
+            hours = dfg.loc[team_name, 'hours_worked']
+            delta = hours - avg_hours
+            style = f"""
+                    {{background-color: {colors[team_name]};
+                    padding: 20px;
+                    border-radius: 10px;
+                    border: 1px solid #e0e0e0;
+                    }}
+                    """
+            with stylable_container(key=f"members_container_{team_name}",css_styles=style,):
+                st.metric(label="Totale Poeng", 
+                          value=f"{hours:.1f} Poeng",
+                          delta =f"{hours - avg_hours:.0f} over gjennomsnittet" if delta > 0 else f"{hours - avg_hours:.0f} under gjennomsnittet",
+                          delta_color="normal")
+
+
+
+# ======================
+# Leaderboard Section
+# ======================
+with tabs[1]:
+    st.markdown("## Individual Leaderboard TOP 10")
+    cols = st.columns(2)
+    role = cols[0].pills("Rolle", options = ["GEN-F", "Mentor", "Hjelpementor"], default = ["GEN-F", "Mentor", "Hjelpementor"], selection_mode="multi")
+    view_by = cols[1].radio("Vis etter", ["Timer", "Cash"], index=0, horizontal=True)
+    role_map = {"GEN-F" : "genf", "Mentor": "mentor", "Hjelpementor": "hjelpementor"}
+    role = ", ".join([f"'{role_map[r]}'" for r in role])
+    
+    query = f"""
+            SELECT 
+            display_name AS Navn,
+            rolle as Rolle,
+            SUM(kostnad) AS Cash, 
+            SUM(timer) AS Timer
+            FROM `genf-446213.registrations.sesong_25_26` s
+            JOIN members.all a ON a.email = s.epost
+            WHERE rolle IN ({role})
+            GROUP BY epost,rolle,a.display_name
+            ORDER BY {view_by} DESC 
+            LIMIT 10;"""
+    
+    df_leader = run_query(query).drop_duplicates(subset=["Navn"])
+    df_leader.drop_duplicates(subset=["Navn"],inplace=True)
+    st.dataframe(
+                df_leader.style.format({"Cash": "{:,.0f} kr", "Timer": "{:,.1f}"}), 
+                use_container_width=True,
+                hide_index=True  # <-- LEGG TIL DETTE
+            )
