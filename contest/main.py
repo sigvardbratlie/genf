@@ -96,23 +96,126 @@ with tabs[1]:
     role_map = {"GEN-F" : "genf", "Mentor": "mentor", "Hjelpementor": "hjelpementor"}
     role = ", ".join([f"'{role_map[r]}'" for r in role])
     
+    # query = f"""
+    #         SELECT 
+    #         display_name AS Navn,
+    #         rolle as Rolle,
+    #         SUM(kostnad) AS Cash, 
+    #         SUM(timer) AS Timer
+    #         FROM `genf-446213.registrations.sesong_25_26` s
+    #         JOIN members.all a ON a.email = s.epost
+    #         WHERE rolle IN ({role})
+    #         GROUP BY epost,rolle,a.display_name
+    #         ORDER BY {view_by} DESC 
+    #         LIMIT 10;"""
+
     query = f"""
             SELECT 
-            display_name AS Navn,
-            rolle as Rolle,
-            SUM(kostnad) AS Cash, 
-            SUM(timer) AS Timer
+            CONCAT(a.first_name, ' ', a.last_name) AS Navn,
+            s.rolle as Rolle,
+            SUM(s.kostnad) AS Cash, 
+            SUM(s.timer) AS Timer
             FROM `genf-446213.registrations.sesong_25_26` s
-            JOIN members.all a ON a.email = s.epost
-            WHERE rolle IN ({role})
-            GROUP BY epost,rolle,a.display_name
+            JOIN members.buk_cash a ON a.email = s.epost
+            WHERE s.rolle IN ({role})
+            GROUP BY epost,s.rolle,a.first_name,a.last_name
             ORDER BY {view_by} DESC 
             LIMIT 10;"""
     
     df_leader = run_query(query).drop_duplicates(subset=["Navn"])
     df_leader.drop_duplicates(subset=["Navn"],inplace=True)
-    st.dataframe(
-                df_leader.style.format({"Cash": "{:,.0f} kr", "Timer": "{:,.1f}"}), 
-                use_container_width=True,
-                hide_index=True  # <-- LEGG TIL DETTE
-            )
+    st.divider()
+    
+
+
+st.markdown("""
+<style>
+.podium-card {
+    border-radius: 20px;
+    padding: 30px 20px;
+    text-align: center;
+    width: 100%;
+    max-width: 300px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+.podium-card:hover {
+    transform: translateY(-5px);
+}
+.gold {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    border: 3px solid #C9B037;
+}
+.silver {
+    background: linear-gradient(135deg, #E8E8E8 0%, #C0C0C0 100%);
+    border: 3px solid #B4B4B4;
+}
+.bronze {
+    background: linear-gradient(135deg, #E4A672 0%, #CD7F32 100%);
+    border: 3px solid #A0522D;
+}
+.podium-card h3 {
+    margin: 0 0 15px 0;
+    font-size: 28px;
+}
+.podium-card p {
+    margin: 8px 0;
+    font-size: 18px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+with st.container():
+    top1 = st.columns(3)
+    with top1[1]:
+        st.markdown(f"""
+        <div class="podium-card gold">
+            <h3>🥇 1. Plass</h3>
+            <p><strong>{df_leader.iloc[0]['Navn']}</strong></p>
+            <p><strong>{df_leader.iloc[0][view_by]:,.0f} {'kr' if view_by == 'Cash' else 'timer'}</strong></p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    top23 = st.columns(3)
+    with top23[0]:
+        st.markdown(f"""
+        <div class="podium-card silver">
+            <h3>🥈 2. Plass</h3>
+            <p><strong>{df_leader.iloc[1]['Navn']}</strong></p>
+            <p><strong>{df_leader.iloc[1][view_by]:,.0f} {'kr' if view_by == 'Cash' else 'timer'}</strong></p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with top23[2]:
+        st.markdown(f"""
+        <div class="podium-card bronze">
+            <h3>🥉 3. Plass</h3>
+            <p><strong>{df_leader.iloc[2]['Navn']}</strong></p>
+            <p><strong>{df_leader.iloc[2][view_by]:,.0f} {'kr' if view_by == 'Cash' else 'timer'}</strong></p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # with st.container():
+    #     top1 = st.columns(3)
+    #     top1[1].markdown("### 🥇 1. Plass")
+    #     top1[1].markdown(f"**{df_leader.iloc[0]['Navn']}**")
+    #     top1[1].markdown(f"**{df_leader.iloc[0][view_by]:,.0f} { 'kr' if view_by == 'Cash' else 'timer'}**")
+
+    #     top23 = st.columns(3)
+    #     top23[0].markdown("### 🥈 2. Plass")
+    #     top23[0].markdown(f"**{df_leader.iloc[1]['Navn']}**")
+    #     top23[0].markdown(f"**{df_leader.iloc[1][view_by]:,.0f} { 'kr' if view_by == 'Cash' else 'timer'}**")
+
+    #     top23[2].markdown("### 🥉 3. Plass")
+    #     top23[2].markdown(f"**{df_leader.iloc[2]['Navn']}**")
+    #     top23[2].markdown(f"**{df_leader.iloc[2][view_by]:,.0f} { 'kr' if view_by == 'Cash' else 'timer'}**")
+    
+    #st.container(height=100,border=False)
+    st.divider()
+    show_rest = st.checkbox("Vis resten av topp 10", value=True)
+    if show_rest:
+        st.dataframe(
+                    df_leader.iloc[3:].style.format({"Cash": "{:,.0f} kr", "Timer": "{:,.1f}"}), 
+                    use_container_width=True,
+                    hide_index=True  
+                )
