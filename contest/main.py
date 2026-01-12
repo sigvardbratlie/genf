@@ -22,7 +22,13 @@ with tabs[0]:
     SELECT * FROM members.teams_25_26
     """
     df_teams = run_query(query)
-    df = pd.merge(data,df_teams, left_on = "worker_id",right_on = "id",  how = "left")
+    query =  '''SELECT bc.first_name, bc.last_name, m.team
+                FROM members.buk_cash bc
+                JOIN members.teams_25_26 m USING (id)
+                WHERE m.contest_role = "leader"
+                '''
+    df_leaders = run_query(query)
+    df = pd.merge(data,df_teams[["id","team"]], left_on = "worker_id",right_on = "id",  how = "left")
     #st.dataframe(df)
     dfg = df.groupby("team").agg({"hours_worked":"sum",
                             #"kostnad":"sum"},
@@ -46,7 +52,8 @@ with tabs[0]:
                      color='team',
                      color_discrete_map=colors,
                      labels={'team': 'Lag', 'hours_worked': 'Poeng'},
-                     title='Totale timer jobbet per lag')
+                     #title='Totale timer jobbet per lag',
+                     )
         fig.add_hline(y=avg_hours, line_dash="dash", line_color="red",
                       annotation_text="Gjennomsnittlige timer",
                       annotation_position="top left")
@@ -58,6 +65,7 @@ with tabs[0]:
             team_name = list(colors.keys())[i]
             hours = dfg.loc[team_name, 'hours_worked']
             delta = hours - avg_hours
+            leaders = df_leaders.loc[df_leaders["team"] == team_name]
             style = f"""
                     {{background-color: {colors[team_name]};
                     padding: 20px;
@@ -66,12 +74,16 @@ with tabs[0]:
                     }}
                     """
             with stylable_container(key=f"members_container_{team_name}",css_styles=style,):
-                st.metric(label="Totale Poeng", 
+                cols = st.columns(2)
+
+                cols[0].metric(label="Totale Poeng", 
                           value=f"{hours:.1f} Poeng",
-                          delta =f"{hours - avg_hours:.0f} over gjennomsnittet" if delta > 0 else f"{hours - avg_hours:.0f} under gjennomsnittet",
+                          delta =f"{hours - avg_hours:.0f} poeng over gjennomsnittet" if delta > 0 else f"{hours - avg_hours:.0f} poeng under gjennomsnittet",
                           delta_color="normal")
-
-
+                with cols[1]:
+                    st.markdown(f"### Lag {team_name.capitalize()} - Lagledere:")
+                    for idx, row in leaders.iterrows():
+                        st.markdown(f"{row['first_name']} {row['last_name']}")
 
 # ======================
 # Leaderboard Section
