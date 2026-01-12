@@ -60,6 +60,8 @@ cryptography==46.0.3
     #   snowflake-connector-python
 cycler==0.12.1
     # via matplotlib
+db-dtypes==1.5.0
+    # via contest (pyproject.toml)
 deprecation==2.1.0
     # via
     #   postgrest
@@ -180,6 +182,7 @@ narwhals==2.15.0
 numpy==2.4.1
     # via
     #   contourpy
+    #   db-dtypes
     #   matplotlib
     #   pandas
     #   pydeck
@@ -187,6 +190,7 @@ numpy==2.4.1
 packaging==25.0
     # via
     #   altair
+    #   db-dtypes
     #   deprecation
     #   google-cloud-bigquery
     #   matplotlib
@@ -198,6 +202,7 @@ pandas==2.3.3
     # via
     #   contest (pyproject.toml)
     #   altex
+    #   db-dtypes
     #   snowflake-connector-python
     #   streamlit
 pillow==12.1.0
@@ -229,6 +234,7 @@ protobuf==6.33.3
     #   streamlit-extras
 pyarrow==22.0.0
     # via
+    #   db-dtypes
     #   snowflake-connector-python
     #   streamlit
 pyasn1==0.6.1
