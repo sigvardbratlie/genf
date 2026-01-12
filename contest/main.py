@@ -90,6 +90,7 @@ with tabs[0]:
 # ======================
 with tabs[1]:
     st.markdown("## Individual Leaderboard TOP 10")
+    st.markdown(f"Viser for perioden 01.08.2025 - {datetime.now().strftime('%d.%m.%Y')}")
     cols = st.columns(2)
     role = cols[0].pills("Rolle", options = ["GEN-F", "Mentor", "Hjelpementor"], default = ["GEN-F", "Mentor", "Hjelpementor"], selection_mode="multi")
     view_by = cols[1].radio("Vis etter", ["Timer", "Cash"], index=0, horizontal=True)
