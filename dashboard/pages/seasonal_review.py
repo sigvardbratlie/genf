@@ -44,9 +44,9 @@ df = load_all_seasons()
 
 
 data = map_roles(df)
-data = data.groupby(["navn","season","rolle"]).agg({
-    "kostnad":"sum",
-    "timer":"sum",}).reset_index()
+data = data.groupby(["worker_name","season","role"]).agg({
+    "cost":"sum",
+    "hours_worked":"sum",}).reset_index()
 
 
 # ========================
@@ -68,16 +68,16 @@ with st.container():
     if filter_inactive:
         filter_value = st.slider("Cut-off for Inactive Members (NOK)", min_value=0, max_value=3000, value=500, step=100)
         st.markdown(f"Medlemmer som har jobbet for mindre enn {filter_value}kr i løpet av en sesong regnes som inaktive.")
-        bar_data = data.loc[data["kostnad"] > filter_value,:].copy()
+        bar_data = data.loc[data["cost"] > filter_value,:].copy()
     else:
         bar_data = data.copy()
     
     for season in prices["sesong"].unique():
-        bar_data.loc[(bar_data["rolle"].isin(["genf","hjelpementor"])) & (bar_data["season"] == season), "goal"] = prices.loc[prices["sesong"] == season,"camp_u18"].values[0]
-        bar_data.loc[(bar_data["rolle"].isin(["mentor"])) & (bar_data["season"] == season), "goal"] = prices.loc[prices["sesong"] == season,"camp_o18"].values[0]
+        bar_data.loc[(bar_data["role"].isin(["genf","hjelpementor"])) & (bar_data["season"] == season), "goal"] = prices.loc[prices["sesong"] == season,"camp_u18"].values[0]
+        bar_data.loc[(bar_data["role"].isin(["mentor"])) & (bar_data["season"] == season), "goal"] = prices.loc[prices["sesong"] == season,"camp_o18"].values[0]
 
     bar_seasong = bar_data.groupby("season").agg({
-        "kostnad":"sum",
+        "cost":"sum",
         "goal":"sum",}).reset_index()
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -88,7 +88,7 @@ with st.container():
     ))
     fig.add_trace(go.Bar(  
         x=bar_seasong["season"],
-        y=bar_seasong["kostnad"],
+        y=bar_seasong["cost"],
         name='Opptjent',
         marker_color='lightsalmon'
     ))  
@@ -98,11 +98,12 @@ with st.container():
 
 
 #st.dataframe(bar_data.head())
-bar_data["difference"] = bar_data["goal"] - bar_data["kostnad"]
+bar_data["difference"] = bar_data["goal"] - bar_data["cost"]
+
 
 st.markdown("## Histogram av Avvik fra Mål per Individ")
 st.markdown("Viser fordelingen av hvor mye hvert individ har tjent i forhold til sitt målbeløp.")
-hue = st.selectbox("Farge etter:", options=["rolle", "season",], index=0)
+hue = st.selectbox("Farge etter:", options=["role", "season",], index=0)
 fig = px.histogram(
         bar_data,
         x="difference",
@@ -113,7 +114,7 @@ fig = px.histogram(
     )
 st.plotly_chart(fig, use_container_width=True )
 
-
+#st.dataframe(bar_data)
 # ========================
 #   Distribution of Individual Costs
 # ========================
@@ -122,7 +123,7 @@ with dist:
     st.markdown("## Fordeling av individuelle opptjente beløp per sesong")
     fig = px.histogram(
         bar_data,
-        x="kostnad", 
+        x="cost", 
         nbins=50, 
         color="season",
         barmode="overlay",  # Overlay istedenfor stack
@@ -149,24 +150,24 @@ with members:
 
         if not filter_inactive:
             filter_value = 1000
-        active = data.loc[(data["kostnad"]> filter_value),:][["navn","season","rolle"]]
-        active = active.groupby(["rolle","season"]).agg({"navn":"count"})
-        active = active.reset_index().rename(columns={"navn":"active_members"})
+        active = data.loc[(data["cost"]> filter_value),:][["worker_name","season","role"]]
+        active = active.groupby(["role","season"]).agg({"worker_name":"count"})
+        active = active.reset_index().rename(columns={"worker_name":"active_members"})
 
         prices_long = prices[["sesong","n_genf","n_hjelpementor","n_mentor"]].melt(
             id_vars="sesong",
             value_vars=["n_genf","n_hjelpementor","n_mentor"],
-            var_name="rolle",
+            var_name="role",
             value_name="registered_members"
         )
 
 
-        prices_long["rolle"] = prices_long["rolle"].str.replace("n_", "")
+        prices_long["role"] = prices_long["role"].str.replace("n_", "")
         prices_long = prices_long.rename(columns={"sesong": "season"})
-        result = prices_long.merge(active, on=["rolle", "season"], how="left").sort_values(by="season")
+        result = prices_long.merge(active, on=["role", "season"], how="left").sort_values(by="season")
 
-        active_pivot = active.pivot(index='season', columns='rolle', values='active_members').fillna(0).reset_index()
-        registered_pivot = result.pivot(index='season', columns='rolle', values='registered_members').fillna(0).reset_index()
+        active_pivot = active.pivot(index='season', columns='role', values='active_members').fillna(0).reset_index()
+        registered_pivot = result.pivot(index='season', columns='role', values='registered_members').fillna(0).reset_index()
 
         fig = go.Figure()
 

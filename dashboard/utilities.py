@@ -8,8 +8,10 @@ from google.api_core.exceptions import NotFound
 from supabase import create_client, Client
 from datetime import date, datetime, timedelta
 from typing import Optional,Any
+import logging
 
-start_date  = "2025-01-01"
+logger = logging.getLogger(__name__)
+start_date  = "2025-08-01"
 end_date    = datetime.today().date().isoformat()
 
 def init_gcp_client():
@@ -90,7 +92,7 @@ def date_picker(disable_datepicker = False):
     dates = st.date_input("Select Date Range",
                                 value=st.session_state.dates if isinstance(st.session_state.dates, tuple) and all(st.session_state.dates) else (start_date, end_date),
                                 min_value="2021-01-01",
-                                max_value=datetime.today().date(),
+                                max_value=datetime.today().date()+timedelta(days=30),
                                 disabled=disable_datepicker
                                 )
     if len(dates) == 2 and dates[1]>=dates[0]:
@@ -130,81 +132,48 @@ def sidebar_setup(disable_datepicker = False,disable_rolepicker = False,disable_
             st.session_state.clear()
             st.rerun()
 
-
 def load_all_seasons():
-    tables = ["sesong_22_23","sesong_23_24","sesong_24_25","sesong_25_26"]
-    dfs = []
+    with st.spinner("Laster data..."):
+        df_raw = run_query("""SELECT s.* EXCEPT(comments,date_of_birth), bc.id AS worker_id 
+                        FROM registrations.season_22_25 s 
+                        LEFT JOIN members.buk_cash bc ON bc.email = s.email""")
+        bc_m = fetch_profiles()
+        df_bc = fetch_job_logs()
 
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-
-    for i, table in enumerate(tables):
-        status_text.text(f"Loading {table}...")
-        df = run_query(f"SELECT * FROM registrations.{table}",spinner_message=None)
-        df["season"] = table.replace("sesong_","").replace("_","/")
-        dfs.append(df)
-        progress_bar.progress((i + 1) / len(tables))
-
-    status_text.text("Done!")
-    progress_bar.empty()
-    status_text.empty()
-
-    df = pd.concat(dfs, ignore_index=True)
-    df['dato'] = pd.to_datetime(df['dato'], utc=True)
-    df.sort_values(by="dato", inplace=True)
+    df_raw = map_roles(df_raw)
+    bc_m["role"] = bc_m["date_of_birth"].apply(lambda x: apply_role(x))
+    df_bc = pd.merge(df_bc, bc_m.loc[:,['id','email',"bank_account_number","role"]], left_on='worker_id', right_on='id', how='left')
+    df_bc["cost"] = df_bc["hours_worked"] * df_bc["hourly_rate"]
+    df_bc["worker_name"] = df_bc["worker_first_name"] + " " + df_bc["worker_last_name"]
+    df_bc["season"] = "25/26"
+    df_bc = df_bc.loc[:,["worker_id","cost","hours_worked","worker_name","date_completed","work_type","email","bank_account_number","role","season"]].copy()
+    df = pd.concat([df_raw, df_bc])
+    df["gruppe"] = df["work_type"].apply(lambda x: x.split("_")[0] if x and "_" in x  else x)
+    df["prosjekt"] = df["work_type"].apply(lambda x: " ".join(x.split("_")[1:]) if x and "_" in x and len(x.split("_")) > 1 else x)
+    df["date_completed"] = pd.to_datetime(df["date_completed"], errors='coerce', utc=True)
     return df
 
-def load_active_users(season = "25/26", threshold = 1000):
-    query =  f'''SELECT s.person_id,r.epost 
-            FROM `genf-446213.registrations.sesong_{season.replace("/","_")}` r
-            JOIN members.specs s ON s.email = r.epost
-            GROUP BY r.epost, s.person_id
-            HAVING SUM(kostnad)>{threshold};'''
+def load_active_users(threshold = 1000):
+    query =  f'''SELECT s.person_id,r.email 
+            FROM `genf-446213.registrations.season_22_25` r
+            JOIN members.specs s ON s.email = r.email
+            GROUP BY r.email, s.person_id
+            HAVING SUM(cost)>{threshold};'''
     df = run_query(query)
     return df
 
 def map_roles(df):
     map_role = {"GEN-F":"genf","Hjelpementor":"hjelpementor","Mentor":"mentor"}
     roles = [map_role[role] for role in st.session_state.role if role in map_role]
-    return df.loc[df["rolle"].isin(roles),:].copy()
+    return df.loc[df["role"].isin(roles),:].copy()
 
 
 def load_members(season):
-    season_year = int("20" + season.split("/")[0])
-    
-    # if datetime.now().month >= 8:
-    #     
-    # else:
-    #     first_year = datetime.now().year - 16
-    
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    dfs = []
-    if season_year >= 2025:
-        first_year = season_year - 17
-        tables = [first_year + i for i in range(0,5)]
-    else:
-        first_year = season_year - 15
-        tables = [first_year + i for i in range(0,3)]
-    for i, year in enumerate(tables):
-        status_text.text(f"Loading members {year}...")
-        try:
-            df = run_query(f"SELECT * FROM members.{year}",)
-            df["season"] = season
-            if i < 2 and season_year >= 2025:
-                df["role"] = "Hjelpementor"
-            else:
-                df["role"] = "GEN-F"
-            dfs.append(df)
-        except NotFound:
-            st.warning(f"Members for year {year} not found in the database.")
-        progress_bar.progress((i + 1) / len(tables))
+    df = run_query("""SELECT * FROM members.members""")
+    df["role"] = df["birthdate"].apply(lambda x: apply_role(x, season=season))
+    return df.loc[df["role"].isin(["genf","hjelpementor",]), :].copy()
 
-    status_text.text("Done!")
-    progress_bar.empty()
-    status_text.empty()
-    df = pd.concat(dfs, ignore_index=True)
-    return df
+
 
 @st.cache_data(ttl=600,show_spinner=False)
 def fetch_job_logs(
@@ -248,7 +217,7 @@ def fetch_job_logs(
         return pd.DataFrame(data)
     
     except Exception as e:
-        print(f"Error fetching job logs: {e}")
+        logger.error(f"Error fetching job logs: {e}")
         if hasattr(e, 'message'):
             print(f"Error message: {e.message}")
         raise
@@ -287,11 +256,45 @@ def fetch_profiles() -> list[dict[str, Any]]:
         response = st.session_state.supabase_client.rpc("get_profiles_with_api_key", {
             "p_api_key": st.session_state.supabase_api_key
         }).execute()
-        
-        return response.data if response.data else []
+        df = pd.DataFrame(response.data) if response.data else pd.DataFrame()
+        return df
     except Exception as e:
         print(f"Error fetching profiles: {e}")
         raise
 
 
-# -----
+
+
+def apply_role(date_of_birth : datetime, season : str = None) -> str:
+    if isinstance(date_of_birth, str):
+        try:
+            date_of_birth = datetime.fromisoformat(date_of_birth)
+        except Exception as e:
+            st.warning(f"Invalid date_of_birth format: {date_of_birth}. Error: {e}")
+            return 
+    if not isinstance(date_of_birth, datetime):
+        logger.error(f"date_of_birth is not a datetime object: {date_of_birth}")
+        return
+        
+    if not season:
+        season_year, season_month = datetime.now().year, datetime.now().month
+    else:
+        years = season.split("/")
+        season_year = int("20" + years[0])
+        season_month = 8  # August
+
+
+    if season_month < 8:
+        if season_year - date_of_birth.year  <= 16:
+            return "genf"
+        elif season_year - date_of_birth.year  <= 18:
+            return "hjelpementor"
+        else:
+            return "mentor"
+    else:
+        if season_year - date_of_birth.year  < 16:
+            return "genf"
+        elif season_year - date_of_birth.year  < 18:
+            return "hjelpementor"
+        else:
+            return "mentor"

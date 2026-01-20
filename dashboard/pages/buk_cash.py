@@ -22,6 +22,7 @@ st.info(f"Viser timer og lønn for periode {st.session_state.dates[0]} til {st.s
 
 # ==== DATA CLEANING =====
 df_raw = fetch_job_logs()
+#st.dataframe(df_raw.loc[df_raw["work_type"]=="glenne_vedpakking",:])
 df_raw["name"] = df_raw["worker_first_name"] + " " + df_raw["worker_last_name"]
 df_raw["cost"] = df_raw["hours_worked"] * df_raw["hourly_rate"]
 df_raw = mk_gruppe_prosjekt(df_raw)
@@ -62,19 +63,6 @@ df = df_raw.copy()
 
 hours = st.container(width="stretch")
 with hours:
-    # delta_time = st.session_state.dates[1] - st.session_state.dates[0]
-    # delta_start = st.session_state.dates[0] - delta_time - timedelta(days=1)
-    # delta_df = df_raw.loc[
-    #     (df_raw['dato'] >= pd.to_datetime(delta_start, utc=True)) &
-    #     (df_raw['dato'] < pd.to_datetime(st.session_state.dates[0], utc=True))
-    #     ].copy()
-    # cols = st.columns(3)
-    # cols[0].metric(label = "Total antall timer", value = f"{df['timer'].sum():,.0f}", 
-    #                delta = f"{df['timer'].sum() - delta_df['timer'].sum():,.0f} fra forrige periode")
-    # cols[1].metric(label = "Totale kostnader", value = f"{df['kostnad'].sum():,.0f} NOK",
-    #                delta = f"{df['kostnad'].sum() - delta_df['kostnad'].sum():,.0f} NOK fra forrige periode")
-    # cols[2].metric(label = "Antall unike brukere", value = f"{df['navn'].nunique():,.0f}",
-    #                delta = f"{df['navn'].nunique() - delta_df['navn'].nunique():,.0f} fra forrige periode")
 
     if name:
         df = df[df["navn"].isin(name)]

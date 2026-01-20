@@ -50,14 +50,14 @@ with bar_plot:
     df_filtered = map_roles(df)
 
     #df_filtered = df
-    df_year = df_filtered.groupby([df_filtered['dato'].dt.year, 'gruppe']).agg({'timer':'sum','kostnad':'sum'}).reset_index()
-    df_year = df_year.loc[df_year['dato'] >= 2023]
+    df_year = df_filtered.groupby([df_filtered['date_completed'].dt.year, 'gruppe']).agg({'hours_worked':'sum','cost':'sum'}).reset_index()
+    df_year = df_year.loc[df_year['date_completed'] >= 2023]
     fig = go.Figure()
     for gruppe in df_year['gruppe'].unique():
         data = df_year[df_year['gruppe'] == gruppe]
         fig.add_trace(go.Bar(
-            x=data['dato'].astype(str),
-            y=data['kostnad'],
+            x=data['date_completed'].astype(str),
+            y=data['cost'],
             name=gruppe,
             offsetgroup='1'  # Samme gruppe = stacked
         ))
@@ -87,7 +87,7 @@ with bar_plot:
 
 
     if not hide_camp:
-        roles = map_roles(df)['rolle'].unique().tolist()
+        roles = map_roles(df)['role'].unique().tolist()
         y = df_costs.drop(columns=['total']).loc[:, roles].sum(axis=1) if len(roles) >1 else df_costs.loc[:, roles[0]]
         fig.add_trace(go.Bar(
             x=df_costs.index.astype(str),   
@@ -113,16 +113,16 @@ cum_cost = st.container()
 with cum_cost:
     st.markdown("## Kumulativ kostnad over måneder")
     st.markdown("Viser hvordan kostnadene har akkumulert måned for måned for hvert år.")
-    df["month"] = df['dato'].dt.month
-    df["year"] = df['dato'].dt.year
-    df_month = df.groupby(['year', 'month']).agg({'timer':'sum','kostnad':'sum'}).reset_index()
-    df_month["kostnad"] = df_month.groupby('year')['kostnad'].cumsum()
+    df["month"] = df['date_completed'].dt.month
+    df["year"] = df['date_completed'].dt.year
+    df_month = df.groupby(['year', 'month']).agg({'hours_worked':'sum','cost':'sum'}).reset_index()
+    df_month["cost"] = df_month.groupby('year')['cost'].cumsum()
     fig = go.Figure()
     for year in df_month['year'].unique():
         data = df_month[df_month['year'] == year]
         fig.add_trace(go.Scatter(
             x=data['month'],
-            y=data['kostnad'],
+            y=data['cost'],
             name=str(year),
             mode='lines'
         ))
