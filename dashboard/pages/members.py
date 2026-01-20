@@ -97,49 +97,5 @@ with st.container():
     st.plotly_chart(fig, use_container_width=True)
 
 
-    
 
-# ======= UPDATE MEMBERS =======
-st.divider()
-with st.container():
-    st.markdown("## Hent medlemsliste fra buk.cash og oppdater database")
-    data = fetch_profiles()
-    members_bc = pd.DataFrame(data)
-    members_bc = members_bc.loc[members_bc["role"] != "parent"].copy()
-    #st.dataframe(members_bc, use_container_width=True)
-    df_to_save = members_bc[["id","custom_id","email","role","first_name","last_name","bank_account_number","date_of_birth"]]
-
-    st.dataframe(df_to_save, use_container_width=True)
-    cols = st.columns(3)
-    
-    with cols[0]:
-        #if st.button("Last ned (CSV)",icon="📥"):
-        csv = df_to_save.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="Last ned CSV",
-            data=csv,
-            file_name='members_buk_cash.csv',
-            mime='text/csv',
-            icon="📄"
-        )
-    with cols[1]:
-        #if st.button("Last ned (Excel)",icon="📥"):
-        buffer = BytesIO()
-        df_to_save.to_excel(buffer, index=False, engine='openpyxl')
-        buffer.seek(0)
-        st.download_button(
-                label="Last ned (Excel)",
-                data=buffer.getvalue(),
-                file_name=f'members_buk_cash.xlsx',
-                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                icon="📄")
-
-    with cols[2]:
-        if st.button("Oppdater (BigQuery)",icon="🔄"):
-            try:
-                st.session_state.gcp_client.load_table_from_dataframe(df_to_save, "members.buk_cash", 
-                                                            job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE"))
-                st.success("Medlemsdatabase oppdatert fra buk.cash!")
-            except Exception as e:
-                st.error(f"Error updating members database: {e}")
     

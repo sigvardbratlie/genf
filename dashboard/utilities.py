@@ -7,8 +7,10 @@ import pandas as pd
 from google.api_core.exceptions import NotFound
 from supabase import create_client, Client
 from datetime import date, datetime, timedelta
-from typing import Optional,Any
+from typing import Optional,Any, List, Dict
 import logging
+
+import supabase
 
 logger = logging.getLogger(__name__)
 start_date  = "2025-08-01"
@@ -260,6 +262,91 @@ def fetch_profiles() -> list[dict[str, Any]]:
         return df
     except Exception as e:
         print(f"Error fetching profiles: {e}")
+        raise
+
+@st.cache_data(ttl=600,show_spinner=False)
+def fetch_work_requests(
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None
+) -> List[Dict[str, Any]]:
+    """
+    Fetch work requests (jobs) for the organization with optional date filtering.
+    
+    API Function: get_work_requests_with_api_key(
+        p_api_key text,
+        p_from_date date DEFAULT NULL,
+        p_to_date date DEFAULT NULL
+    )
+    
+    Args:
+        from_date: Optional start date (filters by created_at, inclusive)
+        to_date: Optional end date (filters by created_at, inclusive)
+    
+    Returns:
+        List of work request dictionaries
+    
+    Example:
+        # Get all work requests
+        requests = fetch_work_requests(supabase, api_key)
+        
+        # Get work requests from last month
+        from_date = date.today() - timedelta(days=30)
+        requests = fetch_work_requests(supabase, api_key, from_date=from_date)
+    """
+    try:
+        params = {"p_api_key": st.session_state.supabase_api_key}
+        
+        if from_date is not None:
+            params["p_from_date"] = from_date.isoformat()
+        if to_date is not None:
+            params["p_to_date"] = to_date.isoformat()
+        
+        response = st.session_state.supabase_client.rpc("get_work_requests_with_api_key", params).execute()
+        
+        return response.data if response.data else []
+    except Exception as e:
+        print(f"Error fetching work requests: {e}")
+        raise
+
+@st.cache_data(ttl=600,show_spinner=False)
+def fetch_job_applications(
+    work_request_id: str
+) -> List[Dict[str, Any]]:
+    """
+    Fetch job applications for a specific work request.
+    
+    API Function: get_job_applications_with_api_key(
+        p_api_key text,
+        p_work_request_id uuid
+    )
+    
+    Args:
+        work_request_id: UUID of the work request
+    
+    Returns:
+        List of job application dictionaries with fields:
+        - id (uuid): Application unique identifier
+        - work_request_id (uuid): Work request ID
+        - user_id (uuid): ID of user who applied
+        - created_at (timestamp): Application timestamp
+        - user_first_name (text): Applicant's first name
+        - user_last_name (text): Applicant's last name
+        - user_email (text): Applicant's email address
+    
+    Example:
+        applications = fetch_job_applications("work-request-uuid-here")
+        for app in applications:
+            print(f"{app['user_first_name']} {app['user_last_name']} applied")
+    """
+    try:
+        response = st.session_state.supabase_client.rpc("get_job_applications_with_api_key", {
+            "p_api_key": st.session_state.supabase_api_key,
+            "p_work_request_id": work_request_id
+        }).execute()
+        
+        return response.data if response.data else []
+    except Exception as e:
+        print(f"Error fetching job applications: {e}")
         raise
 
 
