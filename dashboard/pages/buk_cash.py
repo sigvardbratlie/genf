@@ -158,15 +158,14 @@ with tabs[2]:
     for i in data:
         if i.get("desired_start_date") >= str(date.today()):
             if st.button(f"{i.get('desired_start_date')}: \t {i.get('title')} - {i.get('location')} - {i.get('estimated_hours')} timer", key=i['id']):
-                #with st.expander(f"Jobbdetaljer",expanded=False):
-                job_data = fetch_job_applications(work_request_id=i['id'])
-                df_r = pd.DataFrame(job_data).loc[:,["user_id","user_first_name", "user_last_name", "user_email"]]
-                df = pd.merge(df_r, df_to_save[["id","date_of_birth"]], left_on="user_id", right_on="id", how="left", suffixes=("","_profile"))
-                df["role"] = df["date_of_birth"].apply(lambda x: apply_role(x) if pd.notnull(x) else "unknown")
-                df.drop(columns=["id"], inplace=True)
-                st.dataframe(df, use_container_width=True)
-
-                with st.expander("Last ned data"):
+                with st.container(border=True,):
+                    #with st.expander(f"Jobbdetaljer",expanded=False):
+                    job_data = fetch_job_applications(work_request_id=i['id'])
+                    df_r = pd.DataFrame(job_data).loc[:,["user_id","user_first_name", "user_last_name", "user_email"]]
+                    df = pd.merge(df_r, df_to_save[["id","date_of_birth"]], left_on="user_id", right_on="id", how="left", suffixes=("","_profile"))
+                    df["role"] = df["date_of_birth"].apply(lambda x: apply_role(x) if pd.notnull(x) else "unknown")
+                    df.drop(columns=["id"], inplace=True)
+                    st.dataframe(df, use_container_width=True)
                     cols = st.columns(2)
                     cols[0].download_button(
                                             label="Last ned data som CSV",
