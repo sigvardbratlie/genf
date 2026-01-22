@@ -123,6 +123,7 @@ def sidebar_setup(disable_datepicker = False,disable_rolepicker = False,disable_
         st.page_link("pages/yearly_review.py", label = "Yearly Review", icon="📊")
         st.page_link("pages/members.py", label = "Medlemmer", icon="👥")
         st.page_link("pages/buk_cash.py", label="Buk.cash", icon="💰")
+        st.page_link("pages/work_types.py", label="Jobb typer", icon="🛠️")
 
         #season_picker(disable_seasonpicker=disable_seasonpicker)
         custom_dates_picker(disable_datepicker=disable_custom_datepicker)
@@ -149,6 +150,10 @@ def load_all_seasons():
     df_bc["worker_name"] = df_bc["worker_first_name"] + " " + df_bc["worker_last_name"]
     df_bc["season"] = "25/26"
     df_bc = df_bc.loc[:,["worker_id","cost","hours_worked","worker_name","date_completed","work_type","email","bank_account_number","role","season"]].copy()
+    if "number_of_units" in df_bc.columns:
+        df_bc["cost"] = df_bc.loc[(df_bc["work_type"] == "glenne_vedpakking") & (df_bc["role"] == "genf"), "number_of_units"] * 15
+    else:
+        st.warning("number_of_units column not found in data from buk.cash")
     df = pd.concat([df_raw, df_bc])
     df["gruppe"] = df["work_type"].apply(lambda x: x.split("_")[0] if x and "_" in x  else x)
     df["prosjekt"] = df["work_type"].apply(lambda x: " ".join(x.split("_")[1:]) if x and "_" in x and len(x.split("_")) > 1 else x)
