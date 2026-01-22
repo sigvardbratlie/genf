@@ -58,8 +58,10 @@ def save_to_bigquery():
     except Exception as e:
         st.error(f"Kunne ikke sende inn: {e}")
 
-st.info(os.listdir('.'))
-st.info(os.listdir('./assets'))
+if "form" in os.listdir('.'):
+    os.chdir('form')
+# st.info(os.listdir('.'))
+# st.info(os.listdir('./assets'))
 
 
 st.set_page_config(
