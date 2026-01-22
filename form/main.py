@@ -60,14 +60,14 @@ def save_to_bigquery():
 
 st.set_page_config(
     page_title="BUK Mentor Undersøkelse",
-    page_icon="buk_img.png",
+    page_icon="./assets/buk_img.png",
     layout="centered"
 )
 
 # Title with image
 col1, col2 = st.columns([1, 5])
 with col1:
-    st.image("assets/buk_img.jpg", width=80)
+    st.image("./assets/buk_img.jpg", width=80)
 with col2:
     st.title("BUK Mentor Undersøkelse")
 st.markdown("Vennligst svar på alle spørsmål så ærlig som mulig.")
