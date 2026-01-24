@@ -21,9 +21,9 @@ def save_to_bigquery():
         'age': st.session_state.age,
         'gender': st.session_state.gender,
         'buk_groups': st.session_state.buk_groups,
-        'dugnad_groups': st.session_state.dugnad_groups,
+        #'dugnad_groups': st.session_state.dugnad_groups,
         'hours_buk': st.session_state.hours_buk,
-        'hours_dugnad': st.session_state.hours_dugnad,
+        #'hours_dugnad': st.session_state.hours_dugnad,
         'mentor_age_group': st.session_state.mentor_age_group,
         'motivation': st.session_state.motivation,
         'capacity': st.session_state.capacity,
@@ -36,14 +36,14 @@ def save_to_bigquery():
         'participation': st.session_state.participation,
         'meaningfulness': st.session_state.meaningfulness,
         'responsibility': st.session_state.responsibility,
-        'work_pref': st.session_state.work_pref,
+        #'work_pref': st.session_state.work_pref,
         'campaign': st.session_state.campaign,
         'youth_connection_13_16': st.session_state.youth_13_16,
         'youth_connection_16_18': st.session_state.youth_16_18,
         'youth_connection_18_23': st.session_state.youth_18_23,
         'youth_connection_23plus': st.session_state.youth_23plus,
         'friends_activity': st.session_state.friends_activity,
-        'friends_more_active': st.session_state.friends_more_active,
+        #'friends_more_active': st.session_state.friends_more_active,
         'uuid': st.session_state.uuid
     }
     
@@ -51,7 +51,10 @@ def save_to_bigquery():
     @retry.Retry(initial=1.0, maximum=10.0, multiplier=2.0, deadline=30.0)
     def insert_with_retry():
         client = init_gcp_client()
-        return client.load_table_from_json([responses], table_id).result()
+        return client.load_table_from_json([responses], 
+                                           table_id,
+                                           #job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
+                                           ).result()
     try:
         insert_with_retry()
         st.success("Undersøkelsen er sendt inn! Takk for din deltakelse.")
@@ -86,33 +89,43 @@ with st.form("mentor_survey"):
     
     # Demographics
     st.subheader("Bakgrunnsinformasjon")
-    st.slider("Hvor gammel er du?", min_value=13, max_value=36, value=23, key='age')
-    st.radio("Kjønn", options=['Mann', 'Kvinne', 'Annet/Ønsker ikke å oppgi'], key='gender')
+    #st.slider("Hvor gammel er du?", min_value=13, max_value=36, value=23, key='age')
+    st.radio("Hvor gammel er du?", options=["16-20", "21-25", "26-30", "30+"], key='age')
+    st.radio("Kjønn", options=['Mann', 'Kvinne',], key='gender')
     
     # Groups and time
-    st.multiselect(
-        "Hvilke BUK-grupper er du med på?",
-        options=['Tigers', 'Volleyball', 'Skatedogs', 'TGI', 'BSK', 'Klatring', 'U3', 'Ingen'],
-        key='buk_groups'
-    )
+    # st.multiselect(
+    #     "Hvor mentor for?",
+    #     options=['Tigers', 'Volleyball', 'Skatedogs', 'TGI', 'BSK', 'Klatring', 'U3', 'Ingen',],
+    #     key='buk_groups'
+    # )
     
-    st.multiselect(
-        "Hvilken dugnadsgruppe er du med på?",
-        options=['GEN-F', 'BD-Service', 'Ingen'],
-        key='dugnad_groups'
-    )
+    # st.multiselect(
+    #     "Hvilken dugnadsgruppe er du med på?",
+    #     options=['GEN-F', 'BD-Service', 'Ingen'],
+    #     key='dugnad_groups'
+    # )
+    buk_options = ['Tigers', 'Spikers', 'Skatedogs', 'TGI', 'BSK', 'Klatring', 'U3', "Adventure","BUK Håndball"]
+    dugnad = ['GEN-F', 'BD-Service', 'Annet', "LLB", "Tweens", "AK", "Søndagsskolen", "Ingen"]
+    st.multiselect("Hvor er du mentor? (kan velge flere)",key = 'buk_groups', options=buk_options + dugnad)
     
     st.slider(
-        "Hvor mange timer i uken går med til BUK-gruppen din, både direkte eller indirekte?",
+        "Hvor mange timer bruker du på mentoroppgaven?",
         min_value=0.0, max_value=40.0, value=2.0, step=0.5,
         key='hours_buk'
     )
     
-    st.slider(
-        "Hvor mange timer i uken går med til dugnad, både jobbing eller organisatorisk?",
-        min_value=0.0, max_value=40.0, value=1.0, step=0.5,
-        key='hours_dugnad'
-    )
+    # st.slider(
+    #     "Hvor mange timer i uken går med til BUK-gruppen din, både direkte eller indirekte?",
+    #     min_value=0.0, max_value=40.0, value=2.0, step=0.5,
+    #     key='hours_buk'
+    # )
+    
+    # st.slider(
+    #     "Hvor mange timer i uken går med til dugnad, både jobbing eller organisatorisk?",
+    #     min_value=0.0, max_value=40.0, value=1.0, step=0.5,
+    #     key='hours_dugnad'
+    # )
     
     # Mentor info
     st.subheader("Mentorarbeid")
@@ -154,7 +167,8 @@ with st.form("mentor_survey"):
             'Jeg ønsker å bli mye mer aktiv',
             'Jeg kan godt bli litt mer aktiv',
             'Jeg er fornøyd',
-            'Jeg kan godt bli litt mindre aktiv'
+            'Jeg kan godt bli litt mindre aktiv',
+            "Vet ikke"
         ],
         key='activity_desired'
     )
@@ -166,22 +180,25 @@ with st.form("mentor_survey"):
             'Det skjer mye men er ok',
             'Akkurat passe',
             'Det skjer litt lite',
-            'Det skjer ingenting'
+            'Det skjer ingenting',
+            "Vet ikke"
         ],
         key='events_freq'
     )
     
     # Challenges (MERGED - combined similar questions)
     st.subheader("Utfordringer")
-    st.radio(
-        "Jeg synes det er utfordrende å kombinere mentorarbeid med andre forpliktelser",
-        options=['Sant', 'Usant'],
+    st.slider(
+        "Hvor enig er du i påstanden: Jeg synes det er utfordrende å kombinere mentorarbeid med andre forpliktelser",
+        #options=['Sant', 'Usant'],
+        min_value=1, max_value=10, value=5, step=1,
         key='challenge_combine'
     )
 
-    st.radio(
-        "Jeg føler jeg må velge mellom enten dugnad eller BUK-gruppe, og klarer ikke begge deler",
-        options=['Sant', 'Usant'],
+    st.slider(
+        "Hvor enig er du i påstanden: Jeg føler jeg må velge mellom enten dugnad eller BUK-gruppe, og klarer ikke begge deler",
+        #options=['Sant', 'Usant'],
+        min_value=1, max_value=10, value=5, step=1,
         key='challenge_both'
     )
 
@@ -203,10 +220,10 @@ with st.form("mentor_survey"):
         "Hvordan opplever du mentorarbeidet for deg personlig?",
         options=[
             'Meningsfylt og givende - jeg trenger det',
-            'Jeg forstår det er viktig, men det har ingen stor betydning for meg',
-            'Ikke meningsfylt men jeg trenger det',
+            'Jeg forstår det er viktig, og jeg gjør det for ungdommens skyld',
             'Jeg føler ikke det gjør noe fra eller til',
-            "Jeg har negative følelser rundt det"
+            'Jeg føler et forventningspress om å skulle være mentor', 
+            "Jeg har negative følelser rundt det",
         ],
         key='meaningfulness'
     )
@@ -216,27 +233,27 @@ with st.form("mentor_survey"):
     st.radio(
         "Hvordan forholder du deg til ansvar?",
         options=[
+            'Jeg trives med å ta ansvar',
             'Jeg synes det går fint å ta ansvar',
+            'Nøytral',
             'Jeg syntes det er helt ok, men liker det ikke',
             'Jeg synes det er skummelt å ta ansvar',
-            'Jeg synes det er ubehagelig at noe belager seg på meg',
-            'Jeg avskyr ansvar'
         ],
         key='responsibility'
     )
     
-    st.multiselect(
-        "Hvilke arbeidsformer passer deg? (kan velge flere)",
-        options=[
-            'Jeg kan ta ansvar selv',
-            'Jeg trenger å bli fortalt hva jeg skal gjøre',
-            'Jeg kan være aktiv fra sidelinjen',
-            'Jeg kan være med hvis det ikke stilles krav',
-            'Jeg kan ikke forplikte meg',
-            'Jeg vil ikke være med'
-        ],
-        key='work_pref'
-    )
+    # st.multiselect(
+    #     "Hvilke arbeidsformer passer deg? (kan velge flere)",
+    #     options=[
+    #         'Jeg kan ta ansvar selv',
+    #         'Jeg trenger å bli fortalt hva jeg skal gjøre',
+    #         'Jeg kan være aktiv fra sidelinjen',
+    #         'Jeg kan være med hvis det ikke stilles krav',
+    #         'Jeg kan ikke forplikte meg',
+    #         'Jeg vil ikke være med'
+    #     ],
+    #     key='work_pref'
+    # )
     
     # Improvements
     st.subheader("Forbedringer")
@@ -275,11 +292,11 @@ with st.form("mentor_survey"):
         key='friends_activity'
     )
     
-    st.radio(
-        "Kunne du ønsket at dine venner var mer aktive?",
-        options=['Ja', 'Nei'],
-        key='friends_more_active'
-    )
+    # st.radio(
+    #     "Kunne du ønsket at dine venner var mer aktive?",
+    #     options=['Ja', 'Nei'],
+    #     key='friends_more_active'
+    # )
     
     try:
         submitted = st.form_submit_button("Send inn", on_click=save_to_bigquery)
