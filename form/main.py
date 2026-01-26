@@ -286,11 +286,11 @@ with st.form("mentor_survey"):
               min_value=1, max_value=10, value=5, key='youth_23plus')
     
     # Friends
-    st.radio(
-        "Hvordan anser du dine venner med tanke på aktivitet i mentorarbeidet?",
-        options=['Aktive', 'Middels aktive', 'Lite aktive', 'Ikke aktive'],
-        key='friends_activity'
-    )
+    # st.radio(
+    #     "Hvordan anser du dine venner med tanke på aktivitet i mentorarbeidet?",
+    #     options=['Aktive', 'Middels aktive', 'Lite aktive', 'Ikke aktive'],
+    #     key='friends_activity'
+    # )
     
     # st.radio(
     #     "Kunne du ønsket at dine venner var mer aktive?",
