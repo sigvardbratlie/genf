@@ -135,6 +135,7 @@ def sidebar_setup(disable_datepicker = False,disable_rolepicker = False,disable_
             st.session_state.clear()
             st.rerun()
 
+
 def load_all_seasons():
     with st.spinner("Laster data..."):
         df_raw = run_query("""SELECT s.* EXCEPT(comments,date_of_birth), bc.id AS worker_id 
@@ -143,21 +144,30 @@ def load_all_seasons():
         bc_m = fetch_profiles()
         df_bc = fetch_job_logs()
 
+    st.dataframe(df_bc)
     df_raw = map_roles(df_raw)
     bc_m["role"] = bc_m["date_of_birth"].apply(lambda x: apply_role(x))
     df_bc = pd.merge(df_bc, bc_m.loc[:,['id','email',"bank_account_number","role"]], left_on='worker_id', right_on='id', how='left')
     df_bc["cost"] = df_bc["hours_worked"] * df_bc["hourly_rate"]
     df_bc["worker_name"] = df_bc["worker_first_name"] + " " + df_bc["worker_last_name"]
     df_bc["season"] = "25/26"
-    df_bc = df_bc.loc[:,["worker_id","cost","hours_worked","worker_name","date_completed","work_type","email","bank_account_number","role","season"]].copy()
-    if "number_of_units" in df_bc.columns:
-        df_bc["cost"] = df_bc.loc[(df_bc["work_type"] == "glenne_vedpakking") & (df_bc["role"] == "genf"), "number_of_units"] * 15
+    to_keep = ["worker_id","cost",
+               "hours_worked","worker_name","date_completed",
+               "work_type","email","bank_account_number",
+               "role","season","units_completed","hourly_rate"]
+    df_bc = df_bc.loc[:,to_keep].copy()
+    if "units_completed" in df_bc.columns:
+        df_bc["cost"] = df_bc.loc[(df_bc["work_type"] == "glenne_vedpakking") & (df_bc["role"] == "genf"), "units_completed"] * 15
+        # df_bc["cost"] = df_bc.loc[(df_bc["work_type"] == "glenne_strogrus"), "hours_worked"] \
+        #     * df_bc.loc[(df_bc["work_type"] == "glenne_strogrus"), "hourly_rate"]
+            
     else:
-        st.warning("number_of_units column not found in data from buk.cash")
+        st.warning("units_completed column not found in data from buk.cash")
     df = pd.concat([df_raw, df_bc])
     df["gruppe"] = df["work_type"].apply(lambda x: x.split("_")[0] if x and "_" in x  else x)
     df["prosjekt"] = df["work_type"].apply(lambda x: " ".join(x.split("_")[1:]) if x and "_" in x and len(x.split("_")) > 1 else x)
     df["date_completed"] = pd.to_datetime(df["date_completed"], errors='coerce', utc=True)
+    #st.dataframe(df)
     return df
 
 def load_active_users(threshold = 1000):

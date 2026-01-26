@@ -26,7 +26,7 @@ for col in ['email', 'bank_account_number']:
     mapping = df.dropna(subset=[col]).set_index('worker_name')[col].to_dict()
     df[col] = df[col].fillna(df['worker_name'].map(mapping))
 
-df['number_of_units'] = df['number_of_units'].fillna(0)
+df['units_completed'] = df['units_completed'].fillna(0)
 
 sel_cols = st.columns(2)
 
@@ -82,13 +82,13 @@ with hours:
     if not set(["worker_name","role","cost","hours_worked",]).issubset(df.columns):
         raise KeyError("One or more required columns are missing from the data.")
     else:
-        if set(["email","bank_account_number","number_of_units"]).issubset(df.columns):
+        if set(["email","bank_account_number","units_completed"]).issubset(df.columns):
             if not every_sample:
-                dfg = df.groupby(["worker_name","email","bank_account_number","role"])[["cost","hours_worked","number_of_units"]].sum().reset_index()
+                dfg = df.groupby(["worker_name","email","bank_account_number","role"])[["cost","hours_worked","units_completed"]].sum().reset_index()
             else:
-                dfg = df[["worker_name","email","bank_account_number","role","cost","hours_worked","number_of_units","date_completed",]].copy()
+                dfg = df[["worker_name","email","bank_account_number","role","cost","hours_worked","units_completed","date_completed",]].copy()
         else:
-            st.warning(f"missing some columns {set(['email','bank_account_number','number_of_units']) - set(df.columns)}")
+            st.warning(f"missing some columns {set(['email','bank_account_number','units_completed']) - set(df.columns)}")
             if not every_sample:
                 dfg = df.groupby(["worker_name","role"])[["cost","hours_worked"]].sum().reset_index()
             else:
@@ -96,7 +96,7 @@ with hours:
     st.divider()
     st.dataframe(dfg.style.format({"cost":"{:,.0f} NOK",
                                    "hours_worked":"{:,.1f}",
-                                   "number_of_units":"{:,.0f}"}),use_container_width=True,height=700)
+                                   "units_completed":"{:,.0f}"}),use_container_width=True,height=700)
     # ========================
     #      DOWNLOAD DATA
     # ========================

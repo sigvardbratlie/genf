@@ -28,7 +28,7 @@ for col in ['email', 'bank_account_number']:
     mapping = df.dropna(subset=[col]).set_index('worker_name')[col].to_dict()
     df[col] = df[col].fillna(df['worker_name'].map(mapping))
 
-df['number_of_units'] = df['number_of_units'].fillna(0)
+df['units_completed'] = df['units_completed'].fillna(0)
 
 
 try:
@@ -54,7 +54,7 @@ def view_project_stat(project_name,gruppe_name, show_units = False):
     cols[0].metric("Total timer", f"{df.loc[(df["gruppe"] == gruppe_name) & (df["prosjekt"] == project_name), "hours_worked"].sum():,.0f} timer")
     cols[1].metric("Lønn", f"{df.loc[(df["gruppe"] == gruppe_name) & (df["prosjekt"] == project_name), "cost"].sum():,.0f} kr")
     if show_units:
-        cols[2].metric("Lønn", f"{df.loc[(df["gruppe"] == gruppe_name) & (df["prosjekt"] == project_name), "number_of_units"].sum():,.0f} stk")
+        cols[2].metric("Lønn", f"{df.loc[(df["gruppe"] == gruppe_name) & (df["prosjekt"] == project_name), "units_completed"].sum():,.0f} stk")
     st.divider()
 
 # ========================VASK, RIGG, UTOMHUS================================
@@ -89,8 +89,8 @@ with tabs[1]:
 
     st.markdown("Antall sekker")
     cols = st.columns(2)
-    cols[0].metric("Antall vedsekker", f'{df.loc[df["prosjekt"] == "vedpakking", "number_of_units"].sum():,.0f} sekker')
-    cols[1].metric("Antall grussekker", f'{df.loc[df["prosjekt"] == "strogrus", "number_of_units"].sum():,.0f} sekker')
+    cols[0].metric("Antall vedsekker", f'{df.loc[df["prosjekt"] == "vedpakking", "units_completed"].sum():,.0f} sekker')
+    cols[1].metric("Antall grussekker", f'{df.loc[df["prosjekt"] == "strogrus", "units_completed"].sum():,.0f} sekker')
     
     df_ved = df[df['work_type'].str.contains('ved|grus', case=False, na=False)]
     #st.dataframe(df_ved["prosjekt"].value_counts())
@@ -108,6 +108,13 @@ with tabs[1]:
     st.plotly_chart(fig, use_container_width=True)
 
     st.divider()
+
+    show_job_logs = st.checkbox("Vis alle registreringer")
+    prosjekt = st.pills("Velg ved eller grus", options=["vedpakking", "strogrus"], default="vedpakking", selection_mode = "multi")
+    if show_job_logs:
+        st.dataframe(df_ved.loc[df_ved["prosjekt"].isin(prosjekt), 
+                                df_ved.columns.difference(["gruppe","worker_id","bank_account_number","work_type","email"])
+                                ].sort_values(by="date_completed", ascending=False))
 
 
 
