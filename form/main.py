@@ -42,7 +42,7 @@ def save_to_bigquery():
         'youth_connection_16_18': st.session_state.youth_16_18,
         'youth_connection_18_23': st.session_state.youth_18_23,
         'youth_connection_23plus': st.session_state.youth_23plus,
-        'friends_activity': st.session_state.friends_activity,
+        #'friends_activity': st.session_state.friends_activity,
         #'friends_more_active': st.session_state.friends_more_active,
         'uuid': st.session_state.uuid
     }
@@ -137,7 +137,7 @@ with st.form("mentor_survey"):
     
     st.multiselect(
         "Hva er din motivasjon for å være mentor?",
-        options=['Tjene penger', 'Dra på camper', 'Møte venner', 'Gjøre noe godt for andre'],
+        options=['Tjene penger', 'Dra på camper', 'Møte venner', 'Gjøre noe godt for andre','Annet'],
         key='motivation'
     )
     
