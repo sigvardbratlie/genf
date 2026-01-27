@@ -101,21 +101,27 @@ with st.form("mentor_survey"):
     
     # Mentor info
     st.subheader("Mentorarbeid")
-    st.multiselect(
-        "Hvilken aldersgruppe er du hovedsakelig mentor for?",
-        options=['13-16', '16-18', '18-23', '23+'],
-        key='mentor_age_group'
-    )
+    # st.multiselect(
+    #     "Hvilken aldersgruppe er du hovedsakelig mentor for?",
+    #     options=['13-16', '16-18', '18-23', '23+'],
+    #     key='mentor_age_group'
+    # )
     
     st.multiselect(
         "Hva er din motivasjon for å være mentor?",
-        options=['Tjene penger', 'Dra på camper', 'Møte venner', 'Gjøre noe godt for andre','Annet'],
+        options=['Tjene penger', 
+                 'Dra på camper', 
+                 'Møte venner', 
+                 'Gjøre noe godt for andre',
+                 'Gjøre noe godt for menigheten',
+                  'Få erfaring til CV',
+                 'Annet'],
         key='motivation'
     )
     
     st.subheader("Kapasitet og aktivitet")
     st.radio(
-        "Hvordan vurderer du din kapasitet?",
+        "Hvordan mye ekstra kapasitet har du til mentorarbeid i de kommende 6 månedene?",
         options=[
             'Jeg har mye kapasitet',
             'Jeg har middels kapasitet',
