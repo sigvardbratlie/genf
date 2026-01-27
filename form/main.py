@@ -6,6 +6,7 @@ import uuid
 from google.api_core import retry
 import time
 import os
+
 def init_gcp_client():
     credentials = service_account.Credentials.from_service_account_info(
         st.secrets["gcp_service_account"]
@@ -21,9 +22,7 @@ def save_to_bigquery():
         'age': st.session_state.age,
         'gender': st.session_state.gender,
         'buk_groups': st.session_state.buk_groups,
-        #'dugnad_groups': st.session_state.dugnad_groups,
         'hours_buk': st.session_state.hours_buk,
-        #'hours_dugnad': st.session_state.hours_dugnad,
         'mentor_age_group': st.session_state.mentor_age_group,
         'motivation': st.session_state.motivation,
         'capacity': st.session_state.capacity,
@@ -36,14 +35,11 @@ def save_to_bigquery():
         'participation': st.session_state.participation,
         'meaningfulness': st.session_state.meaningfulness,
         'responsibility': st.session_state.responsibility,
-        #'work_pref': st.session_state.work_pref,
         'campaign': st.session_state.campaign,
-        'youth_connection_13_16': st.session_state.youth_13_16,
-        'youth_connection_16_18': st.session_state.youth_16_18,
-        'youth_connection_18_23': st.session_state.youth_18_23,
-        'youth_connection_23plus': st.session_state.youth_23plus,
-        #'friends_activity': st.session_state.friends_activity,
-        #'friends_more_active': st.session_state.friends_more_active,
+        #'youth_connection_13_16': st.session_state.youth_13_16,
+        #'youth_connection_16_18': st.session_state.youth_16_18,
+        #'youth_connection_18_23': st.session_state.youth_18_23,
+        # 'youth_connection_23plus': st.session_state.youth_23plus,
         'uuid': st.session_state.uuid
     }
     
@@ -89,43 +85,19 @@ with st.form("mentor_survey"):
     
     # Demographics
     st.subheader("Bakgrunnsinformasjon")
-    #st.slider("Hvor gammel er du?", min_value=13, max_value=36, value=23, key='age')
     st.radio("Hvor gammel er du?", options=["16-20", "21-25", "26-30", "30+"], key='age')
     st.radio("Kjønn", options=['Mann', 'Kvinne',], key='gender')
     
-    # Groups and time
-    # st.multiselect(
-    #     "Hvor mentor for?",
-    #     options=['Tigers', 'Volleyball', 'Skatedogs', 'TGI', 'BSK', 'Klatring', 'U3', 'Ingen',],
-    #     key='buk_groups'
-    # )
-    
-    # st.multiselect(
-    #     "Hvilken dugnadsgruppe er du med på?",
-    #     options=['GEN-F', 'BD-Service', 'Ingen'],
-    #     key='dugnad_groups'
-    # )
+
     buk_options = ['Tigers', 'Spikers', 'Skatedogs', 'TGI', 'BSK', 'Klatring', 'U3', "Adventure","BUK Håndball"]
     dugnad = ['GEN-F', 'BD-Service', 'Annet', "LLB", "Tweens", "AK", "Søndagsskolen", "Ingen"]
     st.multiselect("Hvor er du mentor? (kan velge flere)",key = 'buk_groups', options=buk_options + dugnad)
     
     st.slider(
-        "Hvor mange timer bruker du på mentoroppgaven?",
+        "Hvor mange timer bruker du i snitt på mentoroppgaven per uke (inkludert forberedelse og gjennomføring)?",
         min_value=0.0, max_value=40.0, value=2.0, step=0.5,
         key='hours_buk'
     )
-    
-    # st.slider(
-    #     "Hvor mange timer i uken går med til BUK-gruppen din, både direkte eller indirekte?",
-    #     min_value=0.0, max_value=40.0, value=2.0, step=0.5,
-    #     key='hours_buk'
-    # )
-    
-    # st.slider(
-    #     "Hvor mange timer i uken går med til dugnad, både jobbing eller organisatorisk?",
-    #     min_value=0.0, max_value=40.0, value=1.0, step=0.5,
-    #     key='hours_dugnad'
-    # )
     
     # Mentor info
     st.subheader("Mentorarbeid")
@@ -141,7 +113,6 @@ with st.form("mentor_survey"):
         key='motivation'
     )
     
-    # Capacity and activity (MERGED - removed redundant questions)
     st.subheader("Kapasitet og aktivitet")
     st.radio(
         "Hvordan vurderer du din kapasitet?",
@@ -149,15 +120,19 @@ with st.form("mentor_survey"):
             'Jeg har mye kapasitet',
             'Jeg har middels kapasitet',
             'Jeg har akkurat nok',
-            'Jeg har lite ledig tid',
-            'Jeg har ingen ledig tid'
+            'Jeg har lite kapasitet',
+            'Jeg har ingen kapasitet'
         ],
         key='capacity'
     )
     
     st.radio(
         "Hvordan anser du ditt aktivitetsnivå i mentorarbeidet?",
-        options=['Veldig aktiv', 'Middels aktiv', 'Lite aktiv', 'Ikke aktiv'],
+        options=['Veldig aktiv', 
+                 'Middels aktiv', 
+                 'Lite aktiv', 
+                 'Ikke aktiv',
+                 "Vet ikke"],
         key='activity_current'
     )
     
@@ -242,23 +217,12 @@ with st.form("mentor_survey"):
         key='responsibility'
     )
     
-    # st.multiselect(
-    #     "Hvilke arbeidsformer passer deg? (kan velge flere)",
-    #     options=[
-    #         'Jeg kan ta ansvar selv',
-    #         'Jeg trenger å bli fortalt hva jeg skal gjøre',
-    #         'Jeg kan være aktiv fra sidelinjen',
-    #         'Jeg kan være med hvis det ikke stilles krav',
-    #         'Jeg kan ikke forplikte meg',
-    #         'Jeg vil ikke være med'
-    #     ],
-    #     key='work_pref'
-    # )
+
     
     # Improvements
     st.subheader("Forbedringer")
     st.text_area(
-        "Hvis du kunne endret én ting i mentorarbeidet i Oslo, hva ville det vært?",
+        "Har du innspill eller tilbakemeldinger til mentorarbeidet i Oslo? \nHvis du kunne endret én ting i mentorarbeidet i Oslo, hva ville det vært?",
         key='improvement_text',
         placeholder="Skriv dine forslag her..."
     )
@@ -269,35 +233,26 @@ with st.form("mentor_survey"):
             'Veldig engasjerende og givende',
             'Jeg har lyst til å være med, men sliter med å forstå',
             'Jeg har falt av og bryr meg ikke',
-            'Lei av aksjoner'
+            'Lei av aksjoner',
+            'Annet'
         ],
         key='campaign'
     )
     
     # Connection with youth
-    st.subheader("Forbindelse med ungdommen")
-    st.slider("Hvor godt kjenner du ungdommen 13-16 år?", 
-              min_value=1, max_value=10, value=5, key='youth_13_16')
-    st.slider("Hvor godt kjenner du ungdommen 16-18 år?", 
-              min_value=1, max_value=10, value=5, key='youth_16_18')
-    st.slider("Hvor godt kjenner du ungdommen 18-23 år?", 
-              min_value=1, max_value=10, value=5, key='youth_18_23')
-    st.slider("Hvor godt kjenner du ungdommen 23+ år?", 
-              min_value=1, max_value=10, value=5, key='youth_23plus')
+    # st.subheader("Forbindelse med ungdommen")
+    # st.slider("Hvor godt kjenner du ungdommen 13-16 år?", 
+    #           min_value=1, max_value=10, value=5, key='youth_13_16')
+    # st.slider("Hvor godt kjenner du ungdommen 16-18 år?", 
+    #           min_value=1, max_value=10, value=5, key='youth_16_18')
+    # st.slider("Hvor godt kjenner du ungdommen 18-23 år?", 
+    #           min_value=1, max_value=10, value=5, key='youth_18_23')
+    # st.slider("Hvor godt kjenner du ungdommen 23+ år?", 
+    #           min_value=1, max_value=10, value=5, key='youth_23plus')
+    # st.slider("Hvor godt kjenner du ungdommen i din gruppe?", 
+    #           min_value=1, max_value=10, value=5, key='youth_group')
     
-    # Friends
-    # st.radio(
-    #     "Hvordan anser du dine venner med tanke på aktivitet i mentorarbeidet?",
-    #     options=['Aktive', 'Middels aktive', 'Lite aktive', 'Ikke aktive'],
-    #     key='friends_activity'
-    # )
-    
-    # st.radio(
-    #     "Kunne du ønsket at dine venner var mer aktive?",
-    #     options=['Ja', 'Nei'],
-    #     key='friends_more_active'
-    # )
-    
+
     try:
         submitted = st.form_submit_button("Send inn", on_click=save_to_bigquery)
         if submitted:
