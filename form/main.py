@@ -133,40 +133,40 @@ with st.form("mentor_survey"):
         key='capacity'
     )
     
-    st.radio(
-        "Hvordan anser du ditt aktivitetsnivå i mentorarbeidet?",
-        options=['Veldig aktiv', 
-                 'Middels aktiv', 
-                 'Lite aktiv', 
-                 'Ikke aktiv',
-                 "Vet ikke"],
-        key='activity_current'
-    )
+    # st.radio(
+    #     "Hvordan anser du ditt aktivitetsnivå i mentorarbeidet?",
+    #     options=['Veldig aktiv', 
+    #              'Middels aktiv', 
+    #              'Lite aktiv', 
+    #              'Ikke aktiv',
+    #              "Vet ikke"],
+    #     key='activity_current'
+    # )
     
-    st.radio(
-        "Hvordan ønsker du at ditt aktivitetsnivå skal være?",
-        options=[
-            'Jeg ønsker å bli mye mer aktiv',
-            'Jeg kan godt bli litt mer aktiv',
-            'Jeg er fornøyd',
-            'Jeg kan godt bli litt mindre aktiv',
-            "Vet ikke"
-        ],
-        key='activity_desired'
-    )
+    # st.radio(
+    #     "Hvordan ønsker du at ditt aktivitetsnivå skal være?",
+    #     options=[
+    #         'Jeg ønsker å bli mye mer aktiv',
+    #         'Jeg kan godt bli litt mer aktiv',
+    #         'Jeg er fornøyd',
+    #         'Jeg kan godt bli litt mindre aktiv',
+    #         "Vet ikke"
+    #     ],
+    #     key='activity_desired'
+    # )
     
-    st.radio(
-        "Hva synes du om mengden aktiviteter?",
-        options=[
-            'Det skjer for mye',
-            'Det skjer mye men er ok',
-            'Akkurat passe',
-            'Det skjer litt lite',
-            'Det skjer ingenting',
-            "Vet ikke"
-        ],
-        key='events_freq'
-    )
+    # st.radio(
+    #     "Hva synes du om mengden aktiviteter? ()",
+    #     options=[
+    #         'Det skjer for mye',
+    #         'Det skjer mye men er ok',
+    #         'Akkurat passe',
+    #         'Det skjer litt lite',
+    #         'Det skjer ingenting',
+    #         "Vet ikke"
+    #     ],
+    #     key='events_freq'
+    # )
     
     # Challenges (MERGED - combined similar questions)
     st.subheader("Utfordringer")
@@ -178,7 +178,7 @@ with st.form("mentor_survey"):
     )
 
     st.slider(
-        "Hvor enig er du i påstanden: Jeg føler jeg må velge mellom enten dugnad eller BUK-gruppe, og klarer ikke begge deler",
+        "Hvor enig er du i påstanden: Jeg føler jeg må velge mellom enten å være ajour selv eller være aktiv i mentorarbeidet.\n (1 = helt uenig, 10 = helt enig)",
         #options=['Sant', 'Usant'],
         min_value=1, max_value=10, value=5, step=1,
         key='challenge_both'
