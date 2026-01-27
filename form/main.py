@@ -164,7 +164,8 @@ with st.form("mentor_survey"):
     st.multiselect(
         "Hvordan opplever du mentorarbeidet for deg personlig? (kan velge flere)",
         options=[
-            'Meningsfylt og givende - jeg trenger det',
+            'Meningsfylt og givende å kunne være til hjelp for andre',
+            'Meningsfylt også for min egen del',
             'Jeg forstår det er viktig, og jeg gjør det for ungdommens skyld',
             'Jeg føler ikke det gjør noe fra eller til',
             'Jeg føler et forventningspress om å skulle være mentor', 
