@@ -23,11 +23,8 @@ def save_to_bigquery():
         'gender': st.session_state.gender,
         'buk_groups': st.session_state.buk_groups,
         'hours_buk': st.session_state.hours_buk,
-        #'mentor_age_group': st.session_state.mentor_age_group,
         'motivation': st.session_state.motivation,
         'capacity': st.session_state.capacity,
-        #'activity_current': st.session_state.activity_current,
-        #'activity_desired': st.session_state.activity_desired,
         'events_frequency': st.session_state.events_freq,
         'improvement_text': st.session_state.improvement_text,
         'challenge_combine': st.session_state.challenge_combine,
@@ -37,10 +34,6 @@ def save_to_bigquery():
         'responsibility': st.session_state.responsibility,
         'campaign': st.session_state.campaign,
         'events_freq' : st.session_state.events_freq,
-        #'youth_connection_13_16': st.session_state.youth_13_16,
-        #'youth_connection_16_18': st.session_state.youth_16_18,
-        #'youth_connection_18_23': st.session_state.youth_18_23,
-        # 'youth_connection_23plus': st.session_state.youth_23plus,
         'uuid': st.session_state.uuid
     }
     
