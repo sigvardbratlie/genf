@@ -121,13 +121,14 @@ with st.form("mentor_survey"):
     
     st.subheader("Kapasitet og aktivitet")
     st.radio(
-        "Hvordan mye ekstra kapasitet har du til mentorarbeid i de kommende 6 månedene?",
+        "Hvor mye ekstra kapasitet har du til mentorarbeid i de kommende 6 månedene?",
         options=[
             'Jeg har mye kapasitet',
             'Jeg har middels kapasitet',
             'Jeg har akkurat nok',
-            'Jeg har lite kapasitet',
-            'Jeg har ingen kapasitet'
+            'Jeg har ingen kapasitet',
+            "Jeg har så vidt hodet over vann",
+            "Vet ikke"
         ],
         key='capacity'
     )
