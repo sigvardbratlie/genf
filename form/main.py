@@ -50,7 +50,7 @@ def save_to_bigquery():
         client = init_gcp_client()
         return client.load_table_from_json([responses], 
                                            table_id,
-                                           job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
+                                           #job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
                                            ).result()
     try:
         insert_with_retry()
