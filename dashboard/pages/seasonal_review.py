@@ -132,7 +132,19 @@ with dist:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-
+dist_hours = st.container()
+with dist_hours:
+    st.markdown("## Fordeling av individuelle arbeidede timer per sesong")
+    fig = px.histogram(
+        bar_data,
+        x="hours_worked", 
+        nbins=50, 
+        color="season",
+        barmode="overlay",  # Overlay istedenfor stack
+        #title="Distribution of Individual earnings per Season",
+        opacity=0.6  # Gjennomsiktig
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 
 
