@@ -26,8 +26,8 @@ def save_to_bigquery():
         'mentor_age_group': st.session_state.mentor_age_group,
         'motivation': st.session_state.motivation,
         'capacity': st.session_state.capacity,
-        'activity_current': st.session_state.activity_current,
-        'activity_desired': st.session_state.activity_desired,
+        #'activity_current': st.session_state.activity_current,
+        #'activity_desired': st.session_state.activity_desired,
         'events_frequency': st.session_state.events_freq,
         'improvement_text': st.session_state.improvement_text,
         'challenge_combine': st.session_state.challenge_combine,
@@ -36,6 +36,7 @@ def save_to_bigquery():
         'meaningfulness': st.session_state.meaningfulness,
         'responsibility': st.session_state.responsibility,
         'campaign': st.session_state.campaign,
+        'events_freq' : st.session_state.events_freq,
         #'youth_connection_13_16': st.session_state.youth_13_16,
         #'youth_connection_16_18': st.session_state.youth_16_18,
         #'youth_connection_18_23': st.session_state.youth_18_23,
@@ -49,7 +50,7 @@ def save_to_bigquery():
         client = init_gcp_client()
         return client.load_table_from_json([responses], 
                                            table_id,
-                                           #job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
+                                           job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
                                            ).result()
     try:
         insert_with_retry()
@@ -101,11 +102,7 @@ with st.form("mentor_survey"):
     
     # Mentor info
     st.subheader("Mentorarbeid")
-    # st.multiselect(
-    #     "Hvilken aldersgruppe er du hovedsakelig mentor for?",
-    #     options=['13-16', '16-18', '18-23', '23+'],
-    #     key='mentor_age_group'
-    # )
+
     
     st.multiselect(
         "Hva er din motivasjon for å være mentor?",
@@ -133,45 +130,10 @@ with st.form("mentor_survey"):
         key='capacity'
     )
     
-    # st.radio(
-    #     "Hvordan anser du ditt aktivitetsnivå i mentorarbeidet?",
-    #     options=['Veldig aktiv', 
-    #              'Middels aktiv', 
-    #              'Lite aktiv', 
-    #              'Ikke aktiv',
-    #              "Vet ikke"],
-    #     key='activity_current'
-    # )
-    
-    # st.radio(
-    #     "Hvordan ønsker du at ditt aktivitetsnivå skal være?",
-    #     options=[
-    #         'Jeg ønsker å bli mye mer aktiv',
-    #         'Jeg kan godt bli litt mer aktiv',
-    #         'Jeg er fornøyd',
-    #         'Jeg kan godt bli litt mindre aktiv',
-    #         "Vet ikke"
-    #     ],
-    #     key='activity_desired'
-    # )
-    
-    # st.radio(
-    #     "Hva synes du om mengden aktiviteter? ()",
-    #     options=[
-    #         'Det skjer for mye',
-    #         'Det skjer mye men er ok',
-    #         'Akkurat passe',
-    #         'Det skjer litt lite',
-    #         'Det skjer ingenting',
-    #         "Vet ikke"
-    #     ],
-    #     key='events_freq'
-    # )
-    
     # Challenges (MERGED - combined similar questions)
     st.subheader("Utfordringer")
     st.slider(
-        "Hvor enig er du i påstanden: Jeg synes det er utfordrende å kombinere mentorarbeid med andre forpliktelser",
+        "Hvor enig er du i påstanden: Jeg synes det er utfordrende å kombinere mentorarbeid med andre forpliktelser\n (1 = helt uenig, 10 = helt enig)",
         #options=['Sant', 'Usant'],
         min_value=1, max_value=10, value=5, step=1,
         key='challenge_combine'
@@ -185,7 +147,7 @@ with st.form("mentor_survey"):
     )
 
     st.radio(
-        "Hvordan opplever du deltakelse?",
+        "Hvilken av disse påstandene om mentorarbeidet passer best for deg?",
         options=[
             'Jeg ønsker å være med, men føler ikke jeg trenges',
             'Jeg ønsker å være med, men vet ikke hvor eller hvordan',
@@ -198,8 +160,8 @@ with st.form("mentor_survey"):
     
     # Feelings and value (MERGED - removed overlapping questions about meaning/contribution)
     st.subheader("Meningsfullhet")
-    st.radio(
-        "Hvordan opplever du mentorarbeidet for deg personlig?",
+    st.multiselect(
+        "Hvordan opplever du mentorarbeidet for deg personlig? (kan velge flere)",
         options=[
             'Meningsfylt og givende - jeg trenger det',
             'Jeg forstår det er viktig, og jeg gjør det for ungdommens skyld',
@@ -234,30 +196,17 @@ with st.form("mentor_survey"):
         placeholder="Skriv dine forslag her..."
     )
     
-    st.radio(
-        "Hva tenker du om aksjonen?",
-        options=[
-            'Veldig engasjerende og givende',
-            'Jeg har lyst til å være med, men sliter med å forstå',
-            'Jeg har falt av og bryr meg ikke',
-            'Lei av aksjoner',
-            'Annet'
-        ],
+    st.slider(
+        "Hvor viktig har aksjonene (pace, unboxing, osv) vært for å være on-track i Samvirk og BUK? (1 = ikke viktig, 10 = veldig viktig)",
+        min_value=1, max_value=10, value=5, step=1,
         key='campaign'
     )
-    
-    # Connection with youth
-    # st.subheader("Forbindelse med ungdommen")
-    # st.slider("Hvor godt kjenner du ungdommen 13-16 år?", 
-    #           min_value=1, max_value=10, value=5, key='youth_13_16')
-    # st.slider("Hvor godt kjenner du ungdommen 16-18 år?", 
-    #           min_value=1, max_value=10, value=5, key='youth_16_18')
-    # st.slider("Hvor godt kjenner du ungdommen 18-23 år?", 
-    #           min_value=1, max_value=10, value=5, key='youth_18_23')
-    # st.slider("Hvor godt kjenner du ungdommen 23+ år?", 
-    #           min_value=1, max_value=10, value=5, key='youth_23plus')
-    # st.slider("Hvor godt kjenner du ungdommen i din gruppe?", 
-    #           min_value=1, max_value=10, value=5, key='youth_group')
+
+    st.text_area('Kåre Smith kommer på mentorsamlingen, vi har tenkt å stille ham en del spørsmål (kanskje ditt). Skriv minst ett spørsmål som du ønsker at han skal svare på i forbindelse med hyrdetjenesten/mentorarbeidet/BUK.',
+                    key='events_freq',
+                    placeholder="Skriv ditt spørsmål her..."
+    )
+
     
 
     try:
