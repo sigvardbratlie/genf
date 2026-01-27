@@ -23,7 +23,7 @@ def save_to_bigquery():
         'gender': st.session_state.gender,
         'buk_groups': st.session_state.buk_groups,
         'hours_buk': st.session_state.hours_buk,
-        'mentor_age_group': st.session_state.mentor_age_group,
+        #'mentor_age_group': st.session_state.mentor_age_group,
         'motivation': st.session_state.motivation,
         'capacity': st.session_state.capacity,
         #'activity_current': st.session_state.activity_current,
