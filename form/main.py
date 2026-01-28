@@ -99,7 +99,7 @@ with st.form("mentor_survey"):
 
     
     st.multiselect(
-        "Hva er din motivasjon for å være mentor?",
+        "Hva er din motivasjon for å være mentor? (kan velge flere)",
         options=['Tjene penger', 
                  'Dra på camper', 
                  'Møte venner', 
@@ -143,7 +143,7 @@ with st.form("mentor_survey"):
     st.radio(
         "Hvilken av disse påstandene om mentorarbeidet passer best for deg?",
         options=[
-            'Jeg ønsker å være med'
+            'Jeg ønsker å være med',
             'Jeg ønsker å være med, men føler ikke jeg trenges',
             'Jeg ønsker å være med, men vet ikke hvor eller hvordan',
             'Jeg ønsker ikke å være med',
