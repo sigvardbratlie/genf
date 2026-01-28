@@ -12,6 +12,7 @@ members = [
     "dashboard",
     "form",
     "genf",
+    "survey-presentation",
 ]
 
 [[package]]
@@ -2509,6 +2510,25 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ee/cd/76fdac891295148b88938e33cf5dee290692d25b5e05b8ba0132bf6e4aa3/supabase_functions-2.27.1.tar.gz", hash = "sha256:0982f95fddee741d9b59307e9e115f370616533990e9cebb5b8ac06439be7026", size = 4524, upload-time = "2026-01-06T19:07:29.234Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9c/1f/3cb444bed150b5da2c87df5b3ccde620f059b3755ccdf8d262a055c80980/supabase_functions-2.27.1-py3-none-any.whl", hash = "sha256:d405b51997bd83da6914fd8e0fddb9d215783c45b5efbda6b89f6225aac16d31", size = 8473, upload-time = "2026-01-06T19:07:28.205Z" },
+]
+
+[[package]]
+name = "survey-presentation"
+version = "0.1.0"
+source = { virtual = "survey_presentation" }
+dependencies = [
+    { name = "google-auth" },
+    { name = "google-cloud-bigquery" },
+    { name = "plotly" },
+    { name = "streamlit" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "google-auth", specifier = ">=2.47.0" },
+    { name = "google-cloud-bigquery", specifier = ">=3.40.0" },
+    { name = "plotly", specifier = ">=6.5.1" },
+    { name = "streamlit", specifier = ">=1.52.2" },
 ]
 
 [[package]]

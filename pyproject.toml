@@ -12,4 +12,5 @@ members = [
     "dashboard",
     "contest",
     "form",
+    "survey_presentation",
 ]
