@@ -395,7 +395,7 @@ try:
         col1, col2 = st.columns(2)
 
         with col1:
-            show_question("Jeg synes det er utfordrende å kombinere mentorarbeid med andre forpliktelser (1-10)")
+            show_question("Hvor enig er du i påstanden: Jeg synes det er utfordrende å kombinere mentorarbeid med andre forpliktelser\n\n(1 = helt uenig, 10 = helt enig)")
             if 'challenge_combine' in df.columns:   
                 #st.dataframe(df['challenge_combine'])
                 fig = px.bar(df['challenge_combine'].value_counts().reset_index(), y='count', x='challenge_combine', #orientation='h',
@@ -405,7 +405,7 @@ try:
                                use_container_width=True)
 
         with col2:
-            show_question("Jeg føler jeg må velge mellom enten dugnad eller BUK-gruppe (1-10)")
+            show_question("Hvor enig er du i påstanden: Jeg føler jeg må velge mellom å enten være on-track i BUK/Samvirk selv eller være aktiv i mentorarbeidet.\n\n(1 = helt uenig, 10 = helt enig)")
             if 'challenge_both' in df.columns:
                 fig = px.bar(df['challenge_both'].value_counts().reset_index(), y='count', x='challenge_both', #orientation='h',
                              color_discrete_sequence=['#4F46E5'])
@@ -415,7 +415,7 @@ try:
 
         st.markdown("---")
 
-        show_question("Hvordan opplever du deltakelse?")
+        show_question("Hvilken av disse påstandene om mentorarbeidet passer best for deg?")
         if 'participation' in df.columns:
             # st.plotly_chart(bar_chart(df, 'participation', 'Opplevelse av deltakelse'),
             #                use_container_width=True)
@@ -434,21 +434,50 @@ try:
         with col1:
             show_question("Hvordan opplever du mentorarbeidet for deg personlig?")
             if 'meaningfulness' in df.columns:
-                st.plotly_chart(bar_chart(df, 'meaningfulness', 'Meningsfullhet'),
+                data = df['meaningfulness'].explode().value_counts().reset_index()
+                #st.dataframe(data)
+                # st.plotly_chart(bar_chart(df, 'meaningfulness', 'Meningsfullhet'),
+                #                use_container_width=True)
+                fig = px.bar(data, y='count', x='meaningfulness', #orientation='h',
+                             color_discrete_sequence=['#4F46E5'])
+                st.plotly_chart(fig,
                                use_container_width=True)
 
         with col2:
             show_question("Hvordan forholder du deg til ansvar?")
             if 'responsibility' in df.columns:
-                st.plotly_chart(bar_chart(df, 'responsibility', 'Forhold til ansvar'),
+                fig = px.bar(df['responsibility'].value_counts().reset_index(), y='count', x='responsibility', #orientation='h',
+                             color_discrete_sequence=['#4F46E5'])
+                st.plotly_chart(fig,
                                use_container_width=True)
+                #st.plotly_chart(bar_chart(df, 'responsibility', 'Forhold til ansvar'),use_container_width=True)
+                               
 
         st.markdown("---")
 
-        show_question("Hva tenker du om aksjonen?")
-        if 'campaign' in df.columns:
-            st.plotly_chart(bar_chart(df, 'campaign', 'Tanker om aksjonen'),
-                           use_container_width=True)
+        cols = st.columns(2)
+        with cols[0]:
+            show_question("Hvor viktig har aksjonene (pace, unboxing, osv) vært for å være on-track i Samvirk og BUK? (1 = ikke viktig, 10 = veldig viktig)")
+            if 'campaign' in df.columns:
+                data = df['campaign'].value_counts().reset_index()
+                #st.dataframe(data)
+                fig = px.bar(data, y='count', x='campaign', #orientation='h',
+                            color_discrete_sequence=['#4F46E5'])
+                st.plotly_chart(fig,
+                            use_container_width=True)
+                #st.plotly_chart(bar_chart(df, 'campaign', 'Tanker om aksjonen'),use_container_width=True)
+        with cols[1]:
+            show_question("Er det ditt ønske å være en helhjertet mentor og hyrde i menigheten?")
+            if "participation_church" in df.columns:
+                fig = px.pie(df.dropna(subset = ["participation_church"]), names='participation_church', title='Ønske om å være helhjertet mentor/hyrde')
+                fig.update_traces(textposition='outside', textinfo='percent+label')
+                fig.update_layout(
+                    showlegend=False,
+                    margin=dict(t=30, b=30, l=30, r=30),
+                    title=dict(text='Ønske om å være helhjertet mentor/hyrde', x=0.5, font=dict(size=14))
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                           
 
     # TAB 6: Tilbakemeldinger
     with tab6:
