@@ -396,8 +396,12 @@ try:
 
         with col1:
             show_question("Jeg synes det er utfordrende å kombinere mentorarbeid med andre forpliktelser (1-10)")
-            if 'challenge_combine' in df.columns:
-                st.plotly_chart(slider_chart(df, 'challenge_combine', 'Utfordring: Kombinere forpliktelser'),
+            if 'challenge_combine' in df.columns:   
+                #st.dataframe(df['challenge_combine'])
+                fig = px.bar(df['challenge_combine'].value_counts().reset_index(), y='count', x='challenge_combine', #orientation='h',
+                             color_discrete_sequence=['#4F46E5'])
+                #fig = slider_chart(df, 'challenge_combine', 'Utfordring: Kombinere forpliktelser')
+                st.plotly_chart(fig,
                                use_container_width=True)
 
         with col2:

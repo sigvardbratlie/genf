@@ -20,6 +20,8 @@ click==8.3.1
     # via streamlit
 cryptography==46.0.4
     # via google-auth
+db-dtypes==1.5.0
+    # via survey-presentation (pyproject.toml)
 gitdb==4.0.12
     # via gitpython
 gitpython==3.1.46
@@ -70,17 +72,21 @@ narwhals==2.15.0
     #   plotly
 numpy==2.4.1
     # via
+    #   db-dtypes
     #   pandas
     #   pydeck
     #   streamlit
 packaging==26.0
     # via
     #   altair
+    #   db-dtypes
     #   google-cloud-bigquery
     #   plotly
     #   streamlit
 pandas==2.3.3
-    # via streamlit
+    # via
+    #   db-dtypes
+    #   streamlit
 pillow==12.1.0
     # via streamlit
 plotly==6.5.2
@@ -95,7 +101,9 @@ protobuf==6.33.4
     #   proto-plus
     #   streamlit
 pyarrow==23.0.0
-    # via streamlit
+    # via
+    #   db-dtypes
+    #   streamlit
 pyasn1==0.6.2
     # via
     #   pyasn1-modules

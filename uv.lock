@@ -2517,6 +2517,7 @@ name = "survey-presentation"
 version = "0.1.0"
 source = { virtual = "survey_presentation" }
 dependencies = [
+    { name = "db-dtypes" },
     { name = "google-auth" },
     { name = "google-cloud-bigquery" },
     { name = "plotly" },
@@ -2525,6 +2526,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "db-dtypes", specifier = ">=1.5.0" },
     { name = "google-auth", specifier = ">=2.47.0" },
     { name = "google-cloud-bigquery", specifier = ">=3.40.0" },
     { name = "plotly", specifier = ">=6.5.1" },
