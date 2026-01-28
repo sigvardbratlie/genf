@@ -244,10 +244,11 @@ st.caption("Resultater fra mentorundersøkelsen")
 
 try:
     df = load_survey_data()
+    st.dataframe(df)
 
     if df.empty:
         st.warning("Ingen data funnet.")
-        st.stop()
+        #st.stop()
 
     # Key metrics
     st.markdown("---")
@@ -297,29 +298,25 @@ try:
 
         st.markdown("---")
 
-        col1, col2 = st.columns(2)
+        #
 
-        with col1:
+        with st.container():
             show_question("Hvor er du mentor? (kan velge flere)")
             if 'buk_groups' in df.columns:
-                fig = multiselect_bar(df, 'buk_groups', 'Fordeling på grupper')
+                data = df['buk_groups'].explode().value_counts().reset_index()
+                #st.dataframe(data)
+                fig = px.bar(data, y='count', x='buk_groups', #orientation='h',
+                                color_discrete_sequence=['#4F46E5'])
+                #fig = multiselect_bar(df, 'buk_groups', 'Fordeling på grupper')
                 if fig:
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.warning("Ingen gruppedata funnet")
                     with st.expander("Debug: rådata"):
                         st.write(df['buk_groups'].head(5).tolist())
+            else:
+                st.warning("Ingen gruppedata funnet")
 
-        with col2:
-            show_question("Hvilken aldersgruppe er du hovedsakelig mentor for?")
-            if 'mentor_age_group' in df.columns:
-                fig = multiselect_bar(df, 'mentor_age_group', 'Aldersgrupper som mentoreres')
-                if fig:
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.warning("Ingen aldersgruppe-data funnet")
-                    with st.expander("Debug: rådata"):
-                        st.write(df['mentor_age_group'].head(5).tolist())
 
     # TAB 2: Motivasjon og kapasitet
     with tab2:
@@ -329,9 +326,12 @@ try:
         col1, col2 = st.columns(2)
 
         with col1:
-            show_question("Hva er din motivasjon for å være mentor?")
+            show_question("Hva er din motivasjon for å være mentor? (kan velge flere)")
             if 'motivation' in df.columns:
-                fig = multiselect_bar(df, 'motivation', 'Motivasjonsfaktorer')
+                data = df['motivation'].explode().value_counts().reset_index()
+                fig = px.bar(data, y='count', x='motivation', #orientation='h',
+                                color_discrete_sequence=['#4F46E5'])
+                #fig = multiselect_bar(df, 'motivation', 'Motivasjonsfaktorer')
                 if fig:
                     st.plotly_chart(fig, use_container_width=True)
                 else:
@@ -342,8 +342,11 @@ try:
         with col2:
             show_question("Hvordan vurderer du din kapasitet?")
             if 'capacity' in df.columns:
-                st.plotly_chart(bar_chart(df, 'capacity', 'Kapasitetsvurdering'),
-                               use_container_width=True)
+                data = df['capacity'].value_counts().reset_index()
+                #st.dataframe(data)
+                fig = px.bar(df['capacity'].value_counts().reset_index(), y='count', x='capacity', #orientation='h',
+                             color_discrete_sequence=['#4F46E5'])
+                st.plotly_chart(fig, use_container_width=True)
 
         st.markdown("---")
 
@@ -356,8 +359,9 @@ try:
             df_hours['timer_gruppe'] = pd.cut(df_hours['hours_buk'], bins=bins, labels=labels, right=False)
             counts = df_hours['timer_gruppe'].value_counts().sort_index().reset_index()
             counts.columns = ['timer', 'antall']
+            counts.sort_values('timer', inplace=True)
 
-            fig = px.bar(counts, y='timer', x='antall', orientation='h',
+            fig = px.bar(counts, y='antall', x='timer', #orientation='h',
                         color_discrete_sequence=['#4F46E5'])
             fig.update_layout(
                 title=dict(text=f"Timer brukt per uke (snitt: {df['hours_buk'].mean():.1f})", x=0.5),
@@ -372,26 +376,16 @@ try:
         st.header("Aktivitetsnivå")
         st.markdown("Hvordan er aktivitetsnivået blant mentorene?")
 
-        col1, col2 = st.columns(2)
-
-        with col1:
-            show_question("Hvordan anser du ditt aktivitetsnivå i mentorarbeidet?")
-            if 'activity_current' in df.columns:
-                st.plotly_chart(bar_chart(df, 'activity_current', 'Nåværende aktivitetsnivå'),
-                               use_container_width=True)
-
-        with col2:
-            show_question("Hvordan ønsker du at ditt aktivitetsnivå skal være?")
-            if 'activity_desired' in df.columns:
-                st.plotly_chart(bar_chart(df, 'activity_desired', 'Ønsket aktivitetsnivå'),
-                               use_container_width=True)
-
-        st.markdown("---")
-
-        show_question("Hva synes du om mengden aktiviteter?")
+        show_question("Kåre Smith kommer på mentorsamlingen, vi har tenkt å stille ham en del spørsmål (kanskje ditt). \nSkriv minst ett spørsmål som du ønsker at han skal svare på i forbindelse med hyrdetjenesten/mentorarbeidet/BUK.")
         if 'events_frequency' in df.columns:
-            st.plotly_chart(bar_chart(df, 'events_frequency', 'Oppfatning av aktivitetsmengde'),
-                           use_container_width=True)
+            st.markdown(f'Det er kommet inn {(df["events_frequency"].nunique())} svar på dette spørsmålet.')
+
+            with st.expander("Se noen eksempler på spørsmål sendt inn"):
+                sample_questions = df['events_frequency'].dropna().tolist()
+                for i, question in enumerate(sample_questions, 1):
+                    if question.strip():
+                        st.markdown(f"{question}")
+                        st.markdown("---")
 
     # TAB 4: Utfordringer
     with tab4:
