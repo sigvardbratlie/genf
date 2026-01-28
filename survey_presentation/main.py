@@ -407,15 +407,22 @@ try:
         with col2:
             show_question("Jeg føler jeg må velge mellom enten dugnad eller BUK-gruppe (1-10)")
             if 'challenge_both' in df.columns:
-                st.plotly_chart(slider_chart(df, 'challenge_both', 'Utfordring: Velge mellom aktiviteter'),
+                fig = px.bar(df['challenge_both'].value_counts().reset_index(), y='count', x='challenge_both', #orientation='h',
+                             color_discrete_sequence=['#4F46E5'])
+                #st.plotly_chart(slider_chart(df, 'challenge_both', 'Utfordring: Velge mellom aktiviteter'), use_container_width=True)
+                st.plotly_chart(fig,
                                use_container_width=True)
 
         st.markdown("---")
 
         show_question("Hvordan opplever du deltakelse?")
         if 'participation' in df.columns:
-            st.plotly_chart(bar_chart(df, 'participation', 'Opplevelse av deltakelse'),
-                           use_container_width=True)
+            # st.plotly_chart(bar_chart(df, 'participation', 'Opplevelse av deltakelse'),
+            #                use_container_width=True)
+            fig  = px.bar(df['participation'].value_counts().reset_index(), y='count', x='participation', #orientation='h',
+                             color_discrete_sequence=['#4F46E5'])
+            st.plotly_chart(fig,
+                               use_container_width=True)
 
     # TAB 5: Opplevelse
     with tab5:
