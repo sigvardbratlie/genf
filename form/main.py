@@ -34,6 +34,7 @@ def save_to_bigquery():
         'responsibility': st.session_state.responsibility,
         'campaign': st.session_state.campaign,
         'events_freq' : st.session_state.events_freq,
+        "participation_church": st.session_state.participation_church,
         'uuid': st.session_state.uuid
     }
     
@@ -126,14 +127,14 @@ with st.form("mentor_survey"):
     # Challenges (MERGED - combined similar questions)
     st.subheader("Utfordringer")
     st.slider(
-        "Hvor enig er du i påstanden: Jeg synes det er utfordrende å kombinere mentorarbeid med andre forpliktelser\n (1 = helt uenig, 10 = helt enig)",
+        "Hvor enig er du i påstanden: Jeg synes det er utfordrende å kombinere mentorarbeid med andre forpliktelser\n\n(1 = helt uenig, 10 = helt enig)",
         #options=['Sant', 'Usant'],
         min_value=1, max_value=10, value=5, step=1,
         key='challenge_combine'
     )
 
     st.slider(
-        "Hvor enig er du i påstanden: Jeg føler jeg må velge mellom enten å være ajour selv eller være aktiv i mentorarbeidet.\n (1 = helt uenig, 10 = helt enig)",
+        "Hvor enig er du i påstanden: Jeg føler jeg må velge mellom å enten være on-track i BUK/Samvirk selv eller være aktiv i mentorarbeidet.\n\n(1 = helt uenig, 10 = helt enig)",
         #options=['Sant', 'Usant'],
         min_value=1, max_value=10, value=5, step=1,
         key='challenge_both'
@@ -202,7 +203,11 @@ with st.form("mentor_survey"):
                     placeholder="Skriv ditt spørsmål her..."
     )
 
-    
+    st.radio(
+        "Er det ditt ønske å være en helhjertet mentor og hyrde i menigheten?",
+        options=["Ja", "Nei"],
+        key='participation_church'
+    )
 
     try:
         submitted = st.form_submit_button("Send inn", on_click=save_to_bigquery)
