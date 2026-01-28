@@ -244,7 +244,7 @@ st.caption("Resultater fra mentorundersøkelsen")
 
 try:
     df = load_survey_data()
-    st.dataframe(df)
+    #st.dataframe(df)
 
     if df.empty:
         st.warning("Ingen data funnet.")
