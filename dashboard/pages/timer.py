@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from utilities import init, run_query,sidebar_setup,  load_all_seasons
+from utilities import init, run_query,sidebar_setup,  load_all_seasons, fetch_job_logs
 from datetime import datetime,timedelta
 import plotly.express as px
 import plotly.graph_objects as go
@@ -36,6 +36,11 @@ every_sample = sel_cols[1].toggle("Skru av sammenslåing", value=False)
 sel_cols2 = st.columns(2)
 gruppe = sel_cols2[0].multiselect("Velg gruppe (tom for alle)", options=df["gruppe"].unique().tolist(), default=[])
 prosjekt = sel_cols2[1].multiselect("Velg prosjekt (tom for alle)", options=df["prosjekt"].unique().tolist(), default=[])
+
+#st.dataframe(df.loc[df["prosjekt"] == "strogrus"])
+#ks = fetch_job_logs()
+#st.info(f'KS antall timer : {ks["hours_worked"].sum()}')
+
 
 try:
     df = df.loc[

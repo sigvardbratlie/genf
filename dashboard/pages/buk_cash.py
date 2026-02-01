@@ -112,7 +112,14 @@ with tabs[1]:
         data = fetch_profiles()
         members_bc = pd.DataFrame(data)
         members_bc = members_bc.loc[members_bc["role"] != "parent"].copy()
+        members_bc["date_of_birth"] = pd.to_datetime(members_bc["date_of_birth"], errors='coerce')
         df_to_save = members_bc[["id","custom_id","email","role","first_name","last_name","bank_account_number","date_of_birth"]]
+
+        cols = st.columns(3)
+        cols[0].metric("Antall mentorer", df_to_save.loc[df_to_save["date_of_birth"].dt.year < 2008,"id"].nunique())
+        cols[1].metric("Antall hjelpementorer", df_to_save.loc[(df_to_save["date_of_birth"].dt.year.isin([2008,2009])),"id"].nunique())
+        cols[2].metric("Antall GENF", df_to_save.loc[df_to_save["date_of_birth"].dt.year > 2009,"id"].nunique())
+
 
         st.dataframe(df_to_save, use_container_width=True)
         

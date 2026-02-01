@@ -142,13 +142,20 @@ def load_all_seasons():
                         FROM registrations.season_22_25 s 
                         LEFT JOIN members.buk_cash bc ON bc.email = s.email""")
         bc_m = fetch_profiles()
-        df_bc = fetch_job_logs()
+        df_bc = fetch_job_logs("2026-01-01")
 
-    st.dataframe(df_bc)
+
+    #st.dataframe(df_bc)
     df_raw = map_roles(df_raw)
     bc_m["role"] = bc_m["date_of_birth"].apply(lambda x: apply_role(x))
     df_bc = pd.merge(df_bc, bc_m.loc[:,['id','email',"bank_account_number","role"]], left_on='worker_id', right_on='id', how='left')
-    df_bc["cost"] = df_bc["hours_worked"] * df_bc["hourly_rate"]
+    #df_bc["cost"] = df_bc["hours_worked"] * df_bc["hourly_rate"]
+    if "units_completed" in df_bc.columns:
+        df_bc["cost"] = df_bc.loc[(df_bc["work_type"] == "glenne_vedpakking") & (df_bc["role"] == "genf"), "units_completed"] * 15
+        df_bc["cost"] = df_bc["cost"].fillna(df_bc["hours_worked"] * df_bc["hourly_rate"])
+    else:
+        st.warning("units_completed column not found in data from buk.cash")
+        df_bc["cost"] = df_bc["hours_worked"] * df_bc["hourly_rate"]
     df_bc["worker_name"] = df_bc["worker_first_name"] + " " + df_bc["worker_last_name"]
     df_bc["season"] = "25/26"
     to_keep = ["worker_id","cost",
@@ -156,13 +163,6 @@ def load_all_seasons():
                "work_type","email","bank_account_number",
                "role","season","units_completed","hourly_rate"]
     df_bc = df_bc.loc[:,to_keep].copy()
-    if "units_completed" in df_bc.columns:
-        df_bc["cost"] = df_bc.loc[(df_bc["work_type"] == "glenne_vedpakking") & (df_bc["role"] == "genf"), "units_completed"] * 15
-        # df_bc["cost"] = df_bc.loc[(df_bc["work_type"] == "glenne_strogrus"), "hours_worked"] \
-        #     * df_bc.loc[(df_bc["work_type"] == "glenne_strogrus"), "hourly_rate"]
-            
-    else:
-        st.warning("units_completed column not found in data from buk.cash")
     df = pd.concat([df_raw, df_bc])
     df["gruppe"] = df["work_type"].apply(lambda x: x.split("_")[0] if x and "_" in x  else x)
     df["prosjekt"] = df["work_type"].apply(lambda x: " ".join(x.split("_")[1:]) if x and "_" in x and len(x.split("_")) > 1 else x)
