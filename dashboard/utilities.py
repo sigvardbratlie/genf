@@ -162,7 +162,9 @@ def load_all_seasons():
     to_keep = ["worker_id","cost",
                "hours_worked","worker_name","date_completed",
                "work_type","email","bank_account_number",
-               "role","season","units_completed","hourly_rate"]
+               "role","season","units_completed","hourly_rate",
+               "comments",
+               ]
     df_bc = df_bc.loc[:,to_keep].copy()
     df = pd.concat([df_raw, df_bc])
     df["gruppe"] = df["work_type"].apply(lambda x: x.split("_")[0] if x and "_" in x  else x)
