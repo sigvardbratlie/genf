@@ -55,7 +55,9 @@ except Exception as e:
     st.error(f"An unexpected error occurred: {e}")
 
 st.info(f"Viser timer og lønn for periode {st.session_state.dates[0]} til {st.session_state.dates[1]}")
-st.write(f'**First registration**: {df["date_completed"].min().strftime("%Y-%m-%d")}, **Last registration**: {df["date_completed"].max().strftime("%Y-%m-%d")}')
+min_date = df["date_completed"].min().strftime("%Y-%m-%d") if not df.empty else "N/A"
+max_date = df["date_completed"].max().strftime("%Y-%m-%d") if not df.empty else "N/A"
+st.write(f'**First registration**: {min_date}, **Last registration**: {max_date}')
 
 
 

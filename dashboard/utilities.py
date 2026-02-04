@@ -25,8 +25,9 @@ def init_gcp_client():
 
 def init():
     st.session_state.setdefault("gcp_client", init_gcp_client())
-    st.session_state.setdefault("supabase_client", create_client(st.secrets["supabase"].get("SUPABASE_URL"), st.secrets["supabase"].get("SUPABASE_ANON_KEY")))
-    st.session_state.setdefault("supabase_api_key", st.secrets["supabase"].get("API_KEY"))
+    st.session_state.setdefault("supabase_buk_cash", create_client(st.secrets["supabase"].get("buk_cash").get("SUPABASE_URL"), st.secrets["supabase"].get("buk_cash").get("SUPABASE_ANON_KEY")))
+    st.session_state.setdefault("supabase_api_key", st.secrets["supabase"].get("buk_cash").get("API_KEY"))
+    st.session_state.setdefault("supabase_genf", create_client(st.secrets["supabase"].get("genf").get("SUPABASE_URL"), st.secrets["supabase"].get("genf").get("SUPABASE_ANON_KEY")))
     st.session_state.setdefault("dates", (None, None))
     st.session_state.setdefault("role", ["GEN-F", "Hjelpementor", "Mentor"])
     st.session_state.setdefault("season", "25/26")
@@ -225,7 +226,7 @@ def fetch_job_logs(
     
     try:
         # Call the RPC function
-        response = st.session_state.supabase_client.rpc("get_job_logs_with_api_key", params).execute()
+        response = st.session_state.supabase_buk_cash.rpc("get_job_logs_with_api_key", params).execute()
         data = response.data
         
         if data is None:
@@ -270,7 +271,7 @@ def fetch_profiles() -> list[dict[str, Any]]:
             print(f"{profile['first_name']} {profile['last_name']} - Email: {profile.get('email')} - Custom ID: {profile.get('custom_id')}")
     """
     try:
-        response = st.session_state.supabase_client.rpc("get_profiles_with_api_key", {
+        response = st.session_state.supabase_buk_cash.rpc("get_profiles_with_api_key", {
             "p_api_key": st.session_state.supabase_api_key
         }).execute()
         df = pd.DataFrame(response.data) if response.data else pd.DataFrame()
@@ -316,7 +317,7 @@ def fetch_work_requests(
         if to_date is not None:
             params["p_to_date"] = to_date.isoformat()
         
-        response = st.session_state.supabase_client.rpc("get_work_requests_with_api_key", params).execute()
+        response = st.session_state.supabase_buk_cash.rpc("get_work_requests_with_api_key", params).execute()
         
         return response.data if response.data else []
     except Exception as e:
@@ -354,7 +355,7 @@ def fetch_job_applications(
             print(f"{app['user_first_name']} {app['user_last_name']} applied")
     """
     try:
-        response = st.session_state.supabase_client.rpc("get_job_applications_with_api_key", {
+        response = st.session_state.supabase_buk_cash.rpc("get_job_applications_with_api_key", {
             "p_api_key": st.session_state.supabase_api_key,
             "p_work_request_id": work_request_id
         }).execute()
