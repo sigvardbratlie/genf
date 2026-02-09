@@ -93,7 +93,11 @@ with hours:
             if not every_sample:
                 dfg = df.groupby(["worker_name","email","bank_account_number","role"])[["cost","hours_worked","units_completed"]].sum().reset_index()
             else:
-                dfg = df[["worker_name","email","bank_account_number","role","prosjekt","gruppe","comments","cost","hours_worked","units_completed","date_completed",]].copy()
+                cols = ["worker_name","email","bank_account_number","role","prosjekt","gruppe","comments","cost","hours_worked","units_completed","date_completed",]
+                for col in cols:
+                    if col not in df.columns:
+                        cols.pop(cols.index(col))
+                dfg = df[cols].copy()
         else:
             st.warning(f"missing some columns {set(['email','bank_account_number','units_completed']) - set(df.columns)}")
             if not every_sample:
