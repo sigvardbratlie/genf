@@ -1,37 +1,34 @@
 import streamlit as st
-from utilities import init, sidebar_setup, fetch_job_logs, fetch_profiles,fetch_work_requests,fetch_job_applications,apply_role
-from google.cloud import bigquery
 import pandas as pd
 import plotly.graph_objects as go
-from datetime import datetime, timedelta, date
+from datetime import timedelta, date
 from io import BytesIO
 import logging
+
+from utilities import init
+from dashboard.components import SidebarComponent, get_supabase_api
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def mk_gruppe_prosjekt(df_raw):
-    prosjekt_col = df_raw["work_type"].apply(lambda x: " ".join(x.split("_")[1:]) if "_" in x and len(x.split("_")) > 1 else x)
-    gruppe_col = df_raw["work_type"].apply(lambda x: x.split("_")[0] if "_" in x else x)
-    df_raw["gruppe"] = gruppe_col
-    df_raw["prosjekt"] = prosjekt_col
-    return df_raw.drop(columns=["work_type"],)
 
 init()
-sidebar_setup(disable_datepicker=False, disable_custom_datepicker=False)   
-st.title("Buk.cash API")
-#st.divider()
+api = get_supabase_api()
 
+SidebarComponent().sidebar_setup(disable_datepicker=False, disable_custom_datepicker=False)   
+st.title("Buk.cash API")
+#st.info(st.secrets["buk_cash"])
 
 tabs = st.tabs(["Timer", "Brukere", "Jobber"])
 
 with tabs[0]:
     st.info(f"Viser for periode {st.session_state.dates[0]} til {st.session_state.dates[1]}")
     # ==== DATA CLEANING =====
-    df_raw = fetch_job_logs()
+    df_raw = api.fetch_job_logs()
     #st.dataframe(df_raw.loc[df_raw["work_type"]=="glenne_vedpakking",:])
     df_raw["name"] = df_raw["worker_first_name"] + " " + df_raw["worker_last_name"]
     df_raw["cost"] = df_raw["hours_worked"] * df_raw["hourly_rate"]
-    df_raw = mk_gruppe_prosjekt(df_raw)
+    df_raw = api.mk_gruppe_prosjekt(df_raw)
     df_raw["date_completed"] = pd.to_datetime(df_raw["date_completed"], utc=True)
     sel_cols = st.columns(2)
     name = sel_cols[0].multiselect("Velg navn (tom for alle)", options=df_raw["name"].unique().tolist(), default=[])
@@ -110,7 +107,7 @@ with tabs[1]:
     st.divider()
     with st.container():
         st.markdown("## Hent medlemsliste fra buk.cash og oppdater database")
-        data = fetch_profiles()
+        data = api.fetch_profiles()
         members_bc = pd.DataFrame(data)
         members_bc = members_bc.loc[members_bc["role"] != "parent"].copy()
         members_bc["date_of_birth"] = pd.to_datetime(members_bc["date_of_birth"], errors='coerce', format="%Y-%m-%d")
@@ -186,17 +183,17 @@ with tabs[1]:
 
 with tabs[2]:
     st.markdown("## Jobber")
-    data = fetch_work_requests(from_date = (date.today() - timedelta(days=30)),)
+    data = api.fetch_work_requests(from_date = (date.today() - timedelta(days=30)),)
     #st.json(data)
     for i in data:
         if i.get("desired_start_date") >= str(date.today()):
             if st.button(f"{i.get('desired_start_date')}: \t {i.get('title')} - {i.get('location')} - {i.get('estimated_hours')} timer", key=i['id']):
                 with st.container(border=True,):
                     #with st.expander(f"Jobbdetaljer",expanded=False):
-                    job_data = fetch_job_applications(work_request_id=i['id'])
+                    job_data = api.fetch_job_applications(work_request_id=i['id'])
                     df_r = pd.DataFrame(job_data).loc[:,["user_id","user_first_name", "user_last_name", "user_email"]]
                     df = pd.merge(df_r, df_to_save[["id","date_of_birth"]], left_on="user_id", right_on="id", how="left", suffixes=("","_profile"))
-                    df["role"] = df["date_of_birth"].apply(lambda x: apply_role(x) if pd.notnull(x) else "unknown")
+                    df["role"] = df["date_of_birth"].apply(lambda x: api.apply_role(x) if pd.notnull(x) else "unknown")
                     df.drop(columns=["id"], inplace=True)
                     st.dataframe(df, use_container_width=True)
                     cols = st.columns(2)

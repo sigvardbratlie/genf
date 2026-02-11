@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from utilities import init, run_query,sidebar_setup
+from utilities import init
+from dashboard.components import SidebarComponent
 
 #st.json(st.secrets)
 
@@ -10,7 +11,7 @@ st.title("GENF Dashboard")
 st.markdown("### Velkommen til GENF Dashboard")
 st.markdown("Velg en side nedenfor for å komme i gang:")
 
-sidebar_setup()
+SidebarComponent().sidebar_setup()
 
 st.divider()
 

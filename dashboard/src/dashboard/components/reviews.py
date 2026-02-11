@@ -1,52 +1,22 @@
-from utilities import run_query,init, sidebar_setup, load_all_seasons,map_roles,load_members
 import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import tqdm
 from typing import Literal
+from dashboard.components import get_supabase_module
 
 
-    
-
-init()
-sidebar_setup(disable_datepicker=True, 
-              disable_custom_datepicker=True,
-              )
-
-st.title("Seasonal Review")
-st.divider()
-
-# ========================
-#      Load Data
-# ========================
-
-
-df = load_all_seasons()
-
-
-data = map_roles(df)
-data = data.groupby(["worker_name","season","role"]).agg({
-    "cost":"sum",
-    "hours_worked":"sum",}).reset_index()
-
-
-# ========================
-#        BAR PLOT   
-# ========================
-
-class ReviewComponent:
+class SeasonalReviewComponent:
     def __init__(self):
-        self.data = data
-        self.prices = prices
         self.filter_inactive_bool = False
         self.filter_value = 500
 
     
-    def _filter_inactive(self, default_value: int = 500):
-        self.filter_inactive_bool = st.toggle("Filter Inactive Members", value=False)
+    def _filter_inactive(self,):
+        self.filter_inactive_bool = st.toggle("Filter Inactive Members", value=self.filter_inactive_bool)
         if self.filter_inactive_bool:
-            self.filter_value = st.slider("Cut-off for Inactive Members (NOK)", min_value=0, max_value=3000, value=default_value, step=100)
+            self.filter_value = st.slider("Cut-off for Inactive Members (NOK)", min_value=0, max_value=3000, value=self.filter_value, step=100)
             st.markdown(f"Medlemmer som har jobbet for mindre enn {self.filter_value}kr i løpet av en sesong regnes som inaktive.")
         else:
             self.filter_value = 0
@@ -58,8 +28,8 @@ class ReviewComponent:
         st.markdown("## Opptjent vs Mål per Sesong")
         st.markdown("Sammenligning av opptjent beløp mot målbeløp per sesong")
         
-        self._filter_inactive(default_value=500)
-        bar_data = data.loc[data["cost"] > self.filter_value,:].copy() if self.filter_inactive else data.copy()
+        self._filter_inactive()
+        bar_data = data.loc[data["cost"] > self.filter_value,:].copy() if self.filter_inactive_bool else data.copy()
         
         for season in prices["sesong"].unique():
             bar_data.loc[(bar_data["role"].isin(["genf","hjelpementor"])) & (bar_data["season"] == season), "goal"] = prices.loc[prices["sesong"] == season,"camp_u18"].values[0]
@@ -104,6 +74,8 @@ class ReviewComponent:
             )
         st.plotly_chart(fig, use_container_width=True )
 
+    def render_page():
+        pass
 
 # ========================
 #   Distribution of Individual Costs
@@ -181,5 +153,103 @@ class ReviewComponent:
 
             fig.update_layout(barmode='stack')
             st.plotly_chart(fig, use_container_width=True)
+
+
+class YearlyReviewComponent:
+    def __init__(self):
+        self.sb = get_supabase_module()
+
+    #========================
+    #     BAR PLOT   
+    #========================
+    def render_yearly_costs(self, ):
+
+        st.markdown("## Årlig kostnadsgjennomgang")
+        st.markdown("Viser totale kostnader per år, fordelt på gruppe, sammenlignet med Camp kostnader.")
+        st.markdown("Camp kostnader kan skjules/vises (bruk `Skjul Camp kostnader`-knappen) for å bedre se fordelingen av kostnader blant ulike grupper.")
+        hide_camp = st.toggle("Skjul Camp kostnader", value=False)
+
+        df = self.sb.load_work_logs()
+        df_filtered = self.sb.map_roles(df)
+
+        #df_filtered = df
+        df_year = df_filtered.groupby([df_filtered['date_completed'].dt.year, 'gruppe']).agg({'hours_worked':'sum','cost':'sum'}).reset_index()
+        df_year = df_year.loc[df_year['date_completed'] >= 2023]
+        fig = go.Figure()
+        for gruppe in df_year['gruppe'].unique():
+            data = df_year[df_year['gruppe'] == gruppe]
+            fig.add_trace(go.Bar(
+                x=data['date_completed'].astype(str),
+                y=data['cost'],
+                name=gruppe,
+                offsetgroup='1'  # Samme gruppe = stacked
+            ))
+
+        #prices = run_query("SELECT * FROM admin.rates")
+        camp_prices = self.sb.run_query(table = "camp_rates")
+        #members_count = self.sb.run_query(table = "yearly_count")
+
+        year = 2026
+        
+
+        data_camps = {}
+        for year in range(2023, 2026):
+            genf_year_range, hjelpementor_year_range = calc_year_ranges(year)
+            genf = calc_cost_u18(year, genf_year_range)
+            hjelpementor = calc_cost_u18(year, hjelpementor_year_range)
+            mentor = calc_cost(year, n= 50)
+            
+            #genf = calculate_camp_costs_year(year=year, role="genf",prices=prices,camp_prices=camp_prices)
+            #mentor = calculate_camp_costs_year(year=year, role="mentor",prices=prices,camp_prices=camp_prices)
+            #hjelpementor = calculate_camp_costs_year(year=year, role="hjelpementor",prices=prices,camp_prices=camp_prices)
+            data_camps[year] = {"genf":genf, 
+                                "hjelpementor":hjelpementor, 
+                                "mentor":mentor,
+                                "total":genf + mentor + hjelpementor}
+        df_costs = pd.DataFrame.from_dict(data_camps, orient='index')
+
+
+        if not hide_camp:
+            roles = map_roles(df)['role'].unique().tolist()
+            y = df_costs.drop(columns=['total']).loc[:, roles].sum(axis=1) if len(roles) >1 else df_costs.loc[:, roles[0]]
+            fig.add_trace(go.Bar(
+                x=df_costs.index.astype(str),   
+                y=y,
+                name="Camp Costs",
+                opacity=0.7,
+                #marker_color = 'rgba(246, 78, 139, 0.6)',
+                offsetgroup='2'  # Egen gruppe = ved siden av
+            ))
+        fig.update_layout(barmode='stack')
+        st.plotly_chart(fig)
+
+        st.markdown("NB: Viser kostnader som om alle registrerte medlemmer deltok på camp, uavhengig av faktisk deltakelse.")
+        st.info("**NB**: Husk å huk av for roller i sidebar. Viser alle roller 'by default'", icon="⚙️")
+
+
+
+    #========================
+    # Cumulative Cost Over Months
+    #========================
+    def render_cumulative_costs(self, df: pd.DataFrame):
+        st.markdown("## Kumulativ kostnad over måneder")
+        st.markdown("Viser hvordan kostnadene har akkumulert måned for måned for hvert år.")
+        df["month"] = df['date_completed'].dt.month
+        df["year"] = df['date_completed'].dt.year
+        df_month = df.groupby(['year', 'month']).agg({'hours_worked':'sum','cost':'sum'}).reset_index()
+        df_month["cost"] = df_month.groupby('year')['cost'].cumsum()
+        fig = go.Figure()
+        for year in df_month['year'].unique():
+            data = df_month[df_month['year'] == year]
+            fig.add_trace(go.Scatter(
+                x=data['month'],
+                y=data['cost'],
+                name=str(year),
+                mode='lines'
+            ))
+        st.plotly_chart(fig)
+
+    def render_page(self):
+        pass
 
 
