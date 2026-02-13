@@ -1,7 +1,8 @@
 import pytest
-from dashboard.components.database_module import DatabaseModule
+from dashboard.components.database_module import DatabaseModule, SupaBaseApi
 import pandas as pd
 from datetime import datetime,date
+from unittest.mock import patch, Mock
 
 def test_get_current_sesion():
     season = DatabaseModule().get_current_season()
@@ -39,22 +40,73 @@ def test_mk_prosjekt():
     assert DatabaseModule().mk_prosjekt("glenne") == "glenne"
 
 def test_apply_cost():
-    rates = {"genf": 100, "hjelpementor": 150, "mentor": 200, "vedsekk": 20}
-    row = pd.Series({"work_type": "glenne_vedpakking", "hours_worked": 5, "units_completed" : 10, "role" : "genf"})
+    rates = [{"genf": 100, "hjelpementor": 150, "mentor": 200, "vedsekk": 20, "season": "25/26"},
+             {"genf": 90, "hjelpementor": 140, "mentor": 190, "vedsekk": 15, "season": "24/25"}]
+    row = pd.Series({"work_type": "glenne_vedpakking", "hours_worked": 5, "units_completed" : 10, "role" : "genf", "season": "25/26"})
     assert DatabaseModule().apply_cost(row, rates) == 20*10
 
-    row = pd.Series({"work_type": "glenne_vedpakking", "hours_worked": 5, "units_completed" : 70, "role" : "mentor"})
-    assert DatabaseModule().apply_cost(row, rates) == 5 * 200
+    row = pd.Series({"work_type": "glenne_vedpakking", "hours_worked": 5, "units_completed" : 70, "role" : "mentor", "season": "24/25"})
+    assert DatabaseModule().apply_cost(row, rates) == 5 * 190
 
-    row = pd.Series({"work_type": "glenne_vedpakking", "hours_worked": 5, "units_completed" : 15, "role" : "hjelpementor"})
+    row = pd.Series({"work_type": "glenne_vedpakking", "hours_worked": 5, "units_completed" : 15, "role" : "hjelpementor", "season": "25/26"})
     assert DatabaseModule().apply_cost(row, rates) == 5 * 150
 
-    row = pd.Series({"work_type": "bccof_vask", "hours_worked": 10, "units_completed" : None, "role" : "genf"})
+    row = pd.Series({"work_type": "bccof_vask", "hours_worked": 10, "units_completed" : None, "role" : "genf", "season": "25/26"})
     assert DatabaseModule().apply_cost(row, rates) == 100*10
 
-    row = pd.Series({"work_type": "bccof_vask", "hours_worked": 10, "units_completed" : None, "role" : "mentor"})
+    row = pd.Series({"work_type": "bccof_vask", "hours_worked": 10, "units_completed" : None, "role" : "mentor", "season": "25/26"})
     assert DatabaseModule().apply_cost(row, rates) == 200*10
 
-    row = pd.Series({"work_type": "bccof_vask", "hours_worked": 10, "units_completed" : None, "role" : "hjelpementor"})
+    row = pd.Series({"work_type": "bccof_vask", "hours_worked": 10, "units_completed" : None, "role" : "hjelpementor", "season": "25/26"})
     assert DatabaseModule().apply_cost(row, rates) == 150*10
 
+
+def test_load_all_registrations():
+    from dashboard.components.database_module import load_all_registrations
+    from .fixtures.data_buk_cash import combined_data
+    from .fixtures.data_genf import registrations
+
+    with patch("dashboard.components.database_module.get_supabase_api") as mock_get_api, \
+         patch("dashboard.components.database_module.get_supabase_module") as mock_get_sm:
+
+
+        mock_api = Mock()   
+        mock_get_api.return_value = mock_api    
+        mock_api.build_combined.return_value = pd.DataFrame(combined_data)
+
+        mock_sm = Mock()
+        mock_get_sm.return_value = mock_sm
+        mock_sm.run_query.side_effect = [     
+            pd.DataFrame(registrations),            
+            {"some": "rates data"}      
+        ]
+        
+        df = load_all_registrations()
+
+        assert isinstance(df, pd.DataFrame)
+        assert "cost" in df.columns
+
+@pytest.mark.integration
+def test_load_all_registrations_integration():
+    from dashboard.components.database_module import load_all_registrations
+    import os
+    with patch("dashboard.components.database_module.st") as mock_st:
+        # Define mock secrets to avoid TypeError in create_client
+        SUPABASE_URL = "https://qvkdyodpfauvpsamrmew.supabase.co"
+        SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2a2R5b2RwZmF1dnBzYW1ybWV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkzNzMyMDEsImV4cCI6MjA2NDk0OTIwMX0.gMscCXj733-_cT87_ErXPHaaa3YQdWE5gjpJ8XZ4yXI"
+        API_KEY="cf364efb26fca32391f4190bf077bdb2"
+        mock_st.secrets = {
+            "supabase": {
+                "buk_cash": {
+                    "SUPABASE_URL": SUPABASE_URL,
+                    "SUPABASE_ANON_KEY": SUPABASE_ANON_KEY,
+                    "API_KEY": API_KEY
+                },
+                "genf" : {"SUPABASE_URL ": os.getenv("SUPABASE_URL"),
+                          "SUPABASE_ANON_KEY": os.getenv("SUPABASE_ANON_KEY"),}
+            }
+        }
+    
+        df = load_all_registrations()
+        assert isinstance(df, pd.DataFrame)
+        assert "cost" in df.columns

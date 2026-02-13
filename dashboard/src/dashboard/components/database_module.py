@@ -40,7 +40,7 @@ class DatabaseModule(ABC):
             season = self.get_current_season()
         
         year = int(f'20{season.split("/")[1]}')
-        print(f'YEAR: {year} with type {type(year)}, BIRTH_YEAR: {birth_year} with type {type(birth_year)}')
+        #print(f'YEAR: {year} with type {type(year)}, BIRTH_YEAR: {birth_year} with type {type(birth_year)}')
         diff = year - birth_year
         if diff <= 16 and diff >= 14:
             return "genf"
@@ -75,17 +75,22 @@ class DatabaseModule(ABC):
         return " ".join(work_type.split("_")[1:]) if "_" in work_type and len(work_type.split("_")) > 1 else work_type
     
     
-    def apply_cost(self,row : pd.Series, rates : dict,) -> int:
-        
+    def apply_cost(self,row : pd.Series, rates : list,) -> int:
+        season = row["season"] if "season" in row else None
+        for rate in rates:
+            if rate["season"] == season:
+                break
+
         if "role" not in row or "work_type" not in row:
                 raise ValueError("'role' or 'work_type' is missing from row!")
         
         if row["work_type"] == "glenne_vedpakking" and row["role"] in ["genf"]:
-            if not "vedsekk" in rates:
+            if not "vedsekk" in rate:
                 logger.warning("vedpakking is missing from rates. Adding 15 kr as default value")
-            return row["units_completed"] * rates.get("vedsekk", 15)
+            return row["units_completed"] * rate.get("vedsekk", 15)
         else:
-            return row["hours_worked"] * rates.get(row["role"])
+            print(f' ======= CURRENT ROW: {row.to_dict()} ======= ')
+            return row["hours_worked"] * rate.get(row["role"])
         
 
 
@@ -422,6 +427,7 @@ class SupaBaseApi(DatabaseModule):
 
     def build_combined(self,):
         bc_m = self.fetch_profiles()
+        bc_m = bc_m.loc[bc_m["role"] != "parent", :].drop(columns = ["role"]).copy()
         df_bc = self.fetch_job_logs("2026-01-01")
         df_bc["season"] = "25/26"
         bc_m["role"] = bc_m["date_of_birth"].apply(lambda x: self.apply_role(x, season=st.session_state.get("season", None)))
@@ -449,9 +455,10 @@ def load_all_registrations():
     api = get_supabase_api()
     sm = get_supabase_module()
 
-    df = api.build_combined()
-    rates = sm.run_query("rates")
-    rates = rates.loc[rates["season"] == "25/26", :].to_dict(orient="records")[0]
+    df_new = api.build_combined()
+    df_old = sm.run_query("registrations")
+    df = pd.concat([df_old, df_new], ignore_index=True)
+    rates = sm.run_query("rates", return_dataframe=False)
     df["cost"] =  df.apply(lambda row : api.apply_cost(row, rates,), axis = 1)
     return df
 

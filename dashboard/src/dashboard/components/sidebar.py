@@ -84,7 +84,7 @@ class SidebarComponent:
                 st.error("Invalid date selection.")
     
     def role_picker(self, disable_rolepicker = False):
-        role_map = {{"GEN-F":"genf","Hjelpementor":"hjelpementor","Mentor":"mentor"}}
+        role_map = {"GEN-F":"genf","Hjelpementor":"hjelpementor","Mentor":"mentor"}
         role = st.pills("Select Role", options = ["GEN-F", "Hjelpementor", "Mentor"], 
                             default = ["GEN-F", "Hjelpementor", "Mentor"], 
                             selection_mode = "multi",
