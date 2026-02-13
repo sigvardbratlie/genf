@@ -38,7 +38,6 @@ data = data.groupby(["worker_name","season","role"]).agg({
 class ReviewComponent:
     def __init__(self):
         self.data = data
-        self.prices = prices
         self.filter_inactive_bool = False
         self.filter_value = 500
 

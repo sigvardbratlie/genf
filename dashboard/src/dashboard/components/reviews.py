@@ -170,7 +170,7 @@ class YearlyReviewComponent:
         hide_camp = st.toggle("Skjul Camp kostnader", value=False)
 
         df = self.sb.load_work_logs()
-        df_filtered = self.sb.map_roles(df)
+        df = df.loc[df["role"].isin(st.session_state.role),:].copy() if st.session_state.role else df.copy()
 
         #df_filtered = df
         df_year = df_filtered.groupby([df_filtered['date_completed'].dt.year, 'gruppe']).agg({'hours_worked':'sum','cost':'sum'}).reset_index()

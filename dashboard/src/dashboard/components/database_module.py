@@ -6,7 +6,7 @@ import calendar
 import pandas as pd
 from supabase import create_client
 from datetime import date, datetime
-from typing import Optional,Any, List, Dict
+from typing import Optional,Any, List, Dict,Tuple,Literal
 import logging
 from abc import ABC, abstractmethod
 
@@ -16,58 +16,77 @@ logger = logging.getLogger(__name__)
 
 class DatabaseModule(ABC):
     def __init__(self):
-        self.start_date  = "2025-08-01"
+        self.start_date  = datetime(2025, 8, 1).date()
         self.end_date    = datetime.today().date().isoformat()
 
-    @abstractmethod
-    def run_query(self, query: str) -> pd.DataFrame:
-        pass
-
-    def map_roles(self, df):
-        map_role = {"GEN-F":"genf","Hjelpementor":"hjelpementor","Mentor":"mentor"}
-        roles = [map_role[role] for role in st.session_state.role if role in map_role]
-        return df.loc[df["role"].isin(roles),:].copy()
-
-    def apply_role(self, date_of_birth : datetime, season : str = None) -> str:
-        if isinstance(date_of_birth, str):
-            try:
-                date_of_birth = datetime.fromisoformat(date_of_birth)
-            except Exception as e:
-                st.warning(f"Invalid date_of_birth format: {date_of_birth}. Error: {e}")
-                return 
-        if not isinstance(date_of_birth, datetime):
-            logger.error(f"date_of_birth is not a datetime object: {date_of_birth}")
-            return
-            
+    def get_current_season(self)-> str:
+        year, month = datetime.now().year, datetime.now().month
+        if month < 8:
+            year = str(year).replace("20","")
+            return f'{int(year)-1}/{year}'
+        else:
+            return f'{year}/{int(year)+1}'
+        
+        
+    def parse_role(self, birth_year : int, season : str = None, ) -> str:
         if not season:
-            season_year, season_month = datetime.now().year, datetime.now().month
+            logger.info("No season selected. Choosing current season as default")
+            season = self.get_current_season()
+        elif not isinstance(season,str): 
+            logger.warning(f"Season {season} excepted to be type 'str', but are {type(season)}. Selecting current season as default")
+            season = self.get_current_season()
+        elif len(season.split("/")) != 2:
+            logger.warning("Season expected to have format 'year1/year2. Selecting current season as default")
+            season = self.get_current_season()
+        
+        year = int(f'20{season.split("/")[1]}')
+        print(f'YEAR: {year} with type {type(year)}, BIRTH_YEAR: {birth_year} with type {type(birth_year)}')
+        diff = year - birth_year
+        if diff <= 16 and diff >= 14:
+            return "genf"
+        elif diff <= 18 and diff >= 17:
+            return "hjelpementor"
+        elif diff < 14:
+            return None
         else:
-            years = season.split("/")
-            season_year = int("20" + years[0])
-            season_month = 8  # August
+            return "mentor"
 
 
-        if season_month < 8:
-            if season_year - date_of_birth.year  <= 16:
-                return "genf"
-            elif season_year - date_of_birth.year  <= 18:
-                return "hjelpementor"
-            else:
-                return "mentor"
+    def apply_role(self, birth_date : str | date | datetime, season = None):
+        if isinstance(birth_date, str):
+            try:
+                birth_date = datetime.strptime(birth_date, "%Y-%m-%d").date()
+            except ValueError as e:
+                logger.error(f"Error parsing birth_date string {birth_date}: {e}")
+                return "unknown"
+        
+        try:
+            birth_year = birth_date.year
+            return self.parse_role(birth_year, season)
+        except Exception as e:
+            logger.error(f"Error applying role for birth_date {birth_date}: {e}")
+            return "unknown"
+
+    @staticmethod
+    def mk_gruppe(work_type : str):
+        return work_type.split("_")[0] if "_" in work_type else work_type
+    @staticmethod
+    def mk_prosjekt(work_type : str):
+        return " ".join(work_type.split("_")[1:]) if "_" in work_type and len(work_type.split("_")) > 1 else work_type
+    
+    
+    def apply_cost(self,row : pd.Series, rates : dict,) -> int:
+        
+        if "role" not in row or "work_type" not in row:
+                raise ValueError("'role' or 'work_type' is missing from row!")
+        
+        if row["work_type"] == "glenne_vedpakking" and row["role"] in ["genf"]:
+            if not "vedsekk" in rates:
+                logger.warning("vedpakking is missing from rates. Adding 15 kr as default value")
+            return row["units_completed"] * rates.get("vedsekk", 15)
         else:
-            if season_year - date_of_birth.year  < 16:
-                return "genf"
-            elif season_year - date_of_birth.year  < 18:
-                return "hjelpementor"
-            else:
-                return "mentor"
-
-    def mk_gruppe_prosjekt(self, df_raw):
-        prosjekt_col = df_raw["work_type"].apply(lambda x: " ".join(x.split("_")[1:]) if "_" in x and len(x.split("_")) > 1 else x)
-        gruppe_col = df_raw["work_type"].apply(lambda x: x.split("_")[0] if "_" in x else x)
-        df_raw["gruppe"] = gruppe_col
-        df_raw["prosjekt"] = prosjekt_col
-        return df_raw.drop(columns=["work_type"],) 
+            return row["hours_worked"] * rates.get(row["role"])
+        
 
 
 class BigQueryModule(DatabaseModule):
@@ -116,42 +135,94 @@ class SupabaseModule(DatabaseModule):
         self.supabase = create_client(self.supabase_url, self.supabase_api_key)
 
     @st.cache_data(ttl=3600,show_spinner=False)
-    def run_query(_self, table_name: str, cols : list = []) -> pd.DataFrame:
+    def run_query(_self, table_name: str, cols : list = [], return_dataframe : bool = True) -> pd.DataFrame | dict:
         select_cols = ", ".join(cols) if cols else "*"
         response = _self.supabase.table(table_name).select(select_cols).execute()
         data = response.data
-        if data is None:
-            return pd.DataFrame()
-        return pd.DataFrame(data)
+        if return_dataframe:
+            if data is None:
+                    return pd.DataFrame()
+            return pd.DataFrame(data)
+        else:
+            if data is None:
+                return {}
+            return data
     
-    def load_bcc_members(self):
-        return self.run_query("buk_cash_members")
-    
-    def load_users(self):
-        return self.run_query("buk_cash")
-    
-    def load_registrations(self):
-        return self.run_query("registrations")
-    
-#IMPLE;ENT! 
-prices = run_query("SELECT * FROM admin.rates")
-camp_prices = run_query("SELECT * FROM admin.camp_prices")
+    def _calc_camp_season(self, season: str, role: str) -> float:
+        """Calculate camp cost for a season (e.g. '2024/2025')"""
+        if role in ["genf", "hjelpementor"]:
+            age_group = "u"
+        else:
+            age_group = "o"
 
-def get_camp_price_season(df ,sesong : str,u18: bool = True):
-    if u18:
-        prefix = "u"
-    else:
-        prefix = "o"
-    years = sesong.split("/")
-    year1 = int("20" + years[0])
-    year2 = int("20" + years[1])
-    y1_price =  camp_prices.loc[df['year'] == year1, f"{prefix}18_nc"].sum()
-    y2_price =  df.loc[df['year'] == year2, [f"{prefix}18_pc",f"{prefix}18_sc"]].sum().sum()
-    price = y1_price + y2_price
-    return price
-prices["camp_u18"] = prices['sesong'].apply(lambda x: get_camp_price_season(df=camp_prices, sesong=x, u18=True))
-prices["camp_o18"] = prices['sesong'].apply(lambda x: get_camp_price_season(df=camp_prices, sesong=x, u18=False))
+        data = self.run_query("camp_rates")
+        if data is None or data.empty:
+            raise ValueError("Camp rates data is empty or not available")
 
+        try:
+            year1, year2 = map(int, season.split("/"))
+        except (ValueError, IndexError) as e:
+            raise ValueError(f"Invalid season format: {season!r}. Expected e.g. '2024/2025'") from e
+
+        # Get values - with proper error handling
+        try:
+            nc = data.loc[data["year"] == year1, age_group + "18_s"].item()
+            sc_pc = data.loc[data["year"] == year2, age_group + "18_l"].item() * 2
+        except (KeyError, ValueError, IndexError) as e:
+            raise ValueError(
+                f"Missing camp rate data for season {season} "
+                f"(years {year1}/{year2}, group {age_group})"
+            ) from e
+
+        return nc + sc_pc
+
+    def _calc_camp_year(self, year: int, role: str) -> float:
+        """Calculate camp cost for a single year"""
+        if role in ["genf", "hjelpementor"]:
+            age_group = "u"
+        else:
+            age_group = "o"
+
+        data = self.run_query("camp_rates")
+        if data is None or data.empty:
+            raise ValueError("Camp rates data is empty or not available")
+
+        try:
+            nc = data.loc[data["year"] == year, age_group + "18_s"].item()
+            sc_pc = data.loc[data["year"] == year, age_group + "18_l"].item() * 2
+        except (KeyError, ValueError, IndexError) as e:
+            raise ValueError(
+                f"Missing camp rate data for year {year} (group {age_group})"
+            ) from e
+
+        return nc + sc_pc
+
+    def calc_camp_cost(
+        self,
+        period: str,
+        role: Literal["genf", "hjelpementor", "mentor"],
+        type_: Literal["year", "season"] = "season"
+    ) -> float:
+        """
+        Main entry point to calculate camp cost.
+        
+        Args:
+            period: "2024/2025" (season) or "2025" (year)
+            role: participant role
+            type_: "season" or "year"
+        """
+        if type_ == "season":
+            return self._calc_camp_season(period, role)
+        elif type_ == "year":
+            try:
+                year = int(period)
+            except ValueError:
+                raise ValueError(f"Invalid year format for type_='year': {period!r}")
+            return self._calc_camp_year(year, role)
+        else:
+            raise ValueError(f"Invalid type_: {type_!r} (must be 'year' or 'season')")
+
+   
 
 
 class SupaBaseApi(DatabaseModule):
@@ -165,11 +236,11 @@ class SupaBaseApi(DatabaseModule):
     def run_query(self, query: str):
         pass
     
-    @st.cache_data(ttl=600,show_spinner=False)
+    @st.cache_data(ttl=600, show_spinner=False)
     def fetch_job_logs(_self,
         from_date: Optional[date] = None,
         to_date: Optional[date] = None
-    ) -> list[dict]:
+    ) -> pd.DataFrame:
         """
         Fetch job logs using API key with optional date filtering.
         
@@ -178,23 +249,35 @@ class SupaBaseApi(DatabaseModule):
             to_date: Optional end date (inclusive)
         
         Returns:
-            List of job log records
+            DataFrame of job log records
         """
-        # Prepare parameters for the RPC call
-        # Only include date parameters if they are provided (not None)
+        # If dates are missing, try to get them from session state
         if from_date is None or to_date is None:
-            #st.write(st.session_state.dates)
             try:
-                from_date = st.session_state.dates[0] if isinstance(st.session_state.dates[0], date) else _self.start_date
-                to_date = st.session_state.dates[1] if isinstance(st.session_state.dates[1], date) else _self.end_date
-            except:
-                st.warning("Invalid dates in session state, defaulting to no date filter.")
-                from_date = None
-                to_date = None
+                st_dates = st.session_state.get("dates")
+                if st_dates and len(st_dates) == 2:
+                    st_from, st_to = st_dates
+                    if from_date is None:
+                        from_date = st_from
+                    if to_date is None:
+                        to_date = st_to
+            except Exception:
+                pass
+
+        # Convert to date objects if they are strings or datetimes
+        def to_date_obj(d):
+            if isinstance(d, str):
+                return date.fromisoformat(d)
+            if isinstance(d, datetime):
+                return d.date()
+            return d
+
+        from_date = to_date_obj(from_date)
+        to_date = to_date_obj(to_date)
 
         params = {"p_api_key": _self.supabase_api_key}
-        params["p_from_date"] = from_date.isoformat()
-        params["p_to_date"] = to_date.isoformat()
+        params["p_from_date"] = from_date.isoformat() if from_date else None
+        params["p_to_date"] = to_date.isoformat() if to_date else None
         
         try:
             # Call the RPC function
@@ -208,8 +291,6 @@ class SupaBaseApi(DatabaseModule):
         
         except Exception as e:
             logger.error(f"Error fetching job logs: {e}")
-            if hasattr(e, 'message'):
-                print(f"Error message: {e.message}")
             raise
 
     @st.cache_data(ttl=600,show_spinner=False)
@@ -339,6 +420,40 @@ class SupaBaseApi(DatabaseModule):
             print(f"Error fetching job applications: {e}")
             raise
 
+    def build_combined(self,):
+        bc_m = self.fetch_profiles()
+        df_bc = self.fetch_job_logs("2026-01-01")
+        df_bc["season"] = "25/26"
+        bc_m["role"] = bc_m["date_of_birth"].apply(lambda x: self.apply_role(x, season=st.session_state.get("season", None)))
+        df = pd.merge(df_bc, bc_m.loc[:,['id','email',"bank_account_number","role"]], left_on='worker_id', right_on='id', how='left')
+        to_keep = ["worker_id",
+                   #"cost",
+                "hours_worked",
+                "worker_first_name",
+                "worker_last_name",
+                "date_completed",
+                "work_type",
+                "email",
+                "bank_account_number",
+                "role","season",
+                "units_completed",
+                #"hourly_rate",
+                "comments",
+                ]
+        df = df.loc[:,to_keep].copy()
+        return df
+
+
+
+def load_all_registrations():
+    api = get_supabase_api()
+    sm = get_supabase_module()
+
+    df = api.build_combined()
+    rates = sm.run_query("rates")
+    rates = rates.loc[rates["season"] == "25/26", :].to_dict(orient="records")[0]
+    df["cost"] =  df.apply(lambda row : api.apply_cost(row, rates,), axis = 1)
+    return df
 
 @st.cache_resource(ttl=3600, show_spinner=False)
 def get_supabase_api():
@@ -351,40 +466,4 @@ def get_bigquery_module():
 @st.cache_resource(ttl=3600, show_spinner=False)
 def get_supabase_module():
     return SupabaseModule()
-
-# def load_all_seasons():
-#     with st.spinner("Laster data..."):
-#         df_raw = run_query("""SELECT s.* EXCEPT(comments,date_of_birth), bc.id AS worker_id 
-#                         FROM registrations.season_22_25 s 
-#                         LEFT JOIN members.buk_cash bc ON bc.email = s.email""")
-#         bc_m = fetch_profiles()
-#         df_bc = fetch_job_logs("2026-01-01")
-
-
-#     #st.dataframe(df_bc)
-#     df_raw = map_roles(df_raw)
-#     bc_m["role"] = bc_m["date_of_birth"].apply(lambda x: apply_role(x))
-#     df_bc = pd.merge(df_bc, bc_m.loc[:,['id','email',"bank_account_number","role"]], left_on='worker_id', right_on='id', how='left')
-#     #df_bc["cost"] = df_bc["hours_worked"] * df_bc["hourly_rate"]
-#     if "units_completed" in df_bc.columns:
-#         df_bc["cost"] = df_bc.loc[(df_bc["work_type"] == "glenne_vedpakking") & (df_bc["role"] == "genf"), "units_completed"] * 15
-#         df_bc["cost"] = df_bc["cost"].fillna(df_bc["hours_worked"] * df_bc["hourly_rate"])
-#     else:
-#         st.warning("units_completed column not found in data from buk.cash")
-#         df_bc["cost"] = df_bc["hours_worked"] * df_bc["hourly_rate"]
-#     df_bc["worker_name"] = df_bc["worker_first_name"] + " " + df_bc["worker_last_name"]
-#     df_bc["season"] = "25/26"
-#     to_keep = ["worker_id","cost",
-#                "hours_worked","worker_name","date_completed",
-#                "work_type","email","bank_account_number",
-#                "role","season","units_completed","hourly_rate",
-#                "comments",
-#                ]
-#     df_bc = df_bc.loc[:,to_keep].copy()
-#     df = pd.concat([df_raw, df_bc])
-#     df["gruppe"] = df["work_type"].apply(lambda x: x.split("_")[0] if x and "_" in x  else x)
-#     df["prosjekt"] = df["work_type"].apply(lambda x: " ".join(x.split("_")[1:]) if x and "_" in x and len(x.split("_")) > 1 else x)
-#     df["date_completed"] = pd.to_datetime(df["date_completed"], errors='coerce', utc=True)
-#     #st.dataframe(df)
-#     return df
 

@@ -6,7 +6,7 @@ from io import BytesIO
 import logging
 
 from utilities import init
-from dashboard.components import SidebarComponent, get_supabase_api
+from dashboard.components import SidebarComponent, get_supabase_api, get_supabase_module
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 init()
 api = get_supabase_api()
+
 
 SidebarComponent().sidebar_setup(disable_datepicker=False, disable_custom_datepicker=False)   
 st.title("Buk.cash API")
@@ -28,7 +29,10 @@ with tabs[0]:
     #st.dataframe(df_raw.loc[df_raw["work_type"]=="glenne_vedpakking",:])
     df_raw["name"] = df_raw["worker_first_name"] + " " + df_raw["worker_last_name"]
     df_raw["cost"] = df_raw["hours_worked"] * df_raw["hourly_rate"]
-    df_raw = api.mk_gruppe_prosjekt(df_raw)
+    
+    df_raw["prosjekt"] = df_raw["work_type"].apply(lambda x: api.mk_prosjekt(x))
+    df_raw["gruppe"] = df_raw["work_type"].apply(lambda x: api.mk_gruppe(x))
+
     df_raw["date_completed"] = pd.to_datetime(df_raw["date_completed"], utc=True)
     sel_cols = st.columns(2)
     name = sel_cols[0].multiselect("Velg navn (tom for alle)", options=df_raw["name"].unique().tolist(), default=[])

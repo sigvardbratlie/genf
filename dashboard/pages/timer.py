@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from utilities import init, run_query,sidebar_setup,  load_all_seasons, fetch_job_logs
+from utilities import init
+from dashboard.components import SidebarComponent,get_supabase_api, get_supabase_module
 from datetime import datetime,timedelta
 import plotly.express as px
 import plotly.graph_objects as go
@@ -14,7 +15,9 @@ init()
 
 st.title("Timer og lønn")
 st.divider()
-sidebar_setup()
+SidebarComponent().sidebar_setup()
+
+
 
 # ========================
 #      LOAD DATA
