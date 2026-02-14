@@ -5,7 +5,7 @@ from datetime import datetime
 import calendar
 import pandas as pd
 from supabase import create_client
-from datetime import date, datetime
+from datetime import date, datetime,timedelta
 from typing import Optional,Any, List, Dict,Tuple,Literal
 import logging
 from abc import ABC, abstractmethod
@@ -27,7 +27,6 @@ class DatabaseModule(ABC):
         else:
             return f'{year}/{int(year)+1}'
         
-        
     def parse_role(self, birth_year : int, season : str = None, ) -> str:
         if not season:
             logger.info("No season selected. Choosing current season as default")
@@ -47,25 +46,114 @@ class DatabaseModule(ABC):
         elif diff <= 18 and diff >= 17:
             return "hjelpementor"
         elif diff < 14:
-            return None
+            return "u13"
         else:
             return "mentor"
 
-
     def apply_role(self, birth_date : str | date | datetime, season = None):
+        # Check for None or NaN
+        if birth_date is None or (isinstance(birth_date, float) and pd.isna(birth_date)):
+            logger.warning("Birth date is missing. Cannot determine role.")
+            return None
+        
         if isinstance(birth_date, str):
             try:
                 birth_date = datetime.strptime(birth_date, "%Y-%m-%d").date()
             except ValueError as e:
                 logger.error(f"Error parsing birth_date string {birth_date}: {e}")
-                return "unknown"
+                return None
         
         try:
             birth_year = birth_date.year
             return self.parse_role(birth_year, season)
         except Exception as e:
             logger.error(f"Error applying role for birth_date {birth_date}: {e}")
-            return "unknown"
+            return None
+ 
+    def filter_df_by_dates(self, df: pd.DataFrame, dates : tuple = (), date_col: str = "date_completed") -> pd.DataFrame:
+        if date_col not in df.columns:
+            logger.warning(f"Date column {date_col} not found in DataFrame. Skipping date filtering.")
+            return df
+        df["date_completed"] = pd.to_datetime(df["date_completed"], errors='coerce', utc=True)
+        if not dates:
+            st_start_date = st.session_state.get("dates", [None, None])[0]
+            st_end_date = st.session_state.get("dates", [None, None])[1]
+            if st_start_date:
+                self.start_date = st_start_date
+            if st_end_date:
+                self.end_date = st_end_date
+        else:
+            self.start_date, self.end_date = dates
+
+        #print("SELECTED DATES:", self.start_date, self.end_date)
+        #st.info(f"Filtering data by selected dates: {self.start_date} to {self.end_date}")
+        #st.info(f'MIN DATE IN DATA: {df[date_col].min()}, MAX DATE IN DATA: {df[date_col].max()}')
+        
+        try:
+            df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+            filtered_df = df[
+                (df[date_col].dt.date >= self.start_date) &
+                (df[date_col].dt.date <= self.end_date)
+            ].copy()
+            return filtered_df
+        except Exception as e:
+            logger.error(f"Error filtering DataFrame by dates: {e}")
+            return df
+        
+    def filter_work_type(self, df: pd.DataFrame, work_types : list = [], work_type_col: str = "work_type") -> pd.DataFrame:
+        if work_type_col not in df.columns:
+            logger.warning(f"Work type column {work_type_col} not found in DataFrame. Skipping work type filtering.")
+            return df
+        if not work_types:
+            logger.info("No work types selected. Skipping work type filtering.")
+            return df
+        if work_types:
+            filtered_df = df[df[work_type_col].isin(work_types)].copy()
+            return filtered_df
+        return df
+
+    def apply_grouping(self,df : pd.DataFrame, every_sample : bool = False) -> pd.DataFrame:
+        GROUPING_COLS = ["worker_name","email","bank_account_number","role"]
+        AGG_COLS =  ["cost","hours_worked","units_completed"]
+        ALL_COLS = ["worker_name","email","bank_account_number","role","prosjekt","gruppe","comments","cost","hours_worked","units_completed","date_completed",]
+        MIN_COLS = ["worker_name","role","cost","hours_worked",]
+        
+        if not set(GROUPING_COLS + AGG_COLS).issubset(df.columns) and not every_sample:
+            logger.warning(f"Missing some columns for grouping/aggregation: {set(GROUPING_COLS + AGG_COLS) - set(df.columns)}. Returning ungrouped DataFrame.")
+            return df
+        if not set(GROUPING_COLS).issubset(df.columns) and every_sample:
+            logger.warning(f"Missing some columns for grouping: {set(GROUPING_COLS) - set(df.columns)}. Returning ungrouped DataFrame.")
+            return df
+        
+        if not every_sample:
+            dfg = df.groupby(GROUPING_COLS)[AGG_COLS].sum().reset_index()
+        else:
+            for col in ALL_COLS:
+                if col not in df.columns:
+                    ALL_COLS.pop(ALL_COLS.index(col))
+            dfg = df[ALL_COLS].copy()
+        
+        return dfg
+
+    def render_metrics(self, df, df_raw):
+        REQ_COLS = ["cost","hours_worked","worker_name","date_completed"]
+        if not set(REQ_COLS).issubset(df.columns):
+            logger.warning(f"Missing required columns {set(REQ_COLS) - set(df.columns)} in DataFrame.")
+            return
+        delta_time = st.session_state.dates[1] - st.session_state.dates[0]
+        delta_start = st.session_state.dates[0] - delta_time - timedelta(days=1)
+        #st.info((delta_start, st.session_state.dates,delta_time))
+        delta_df = df_raw.loc[
+            (df_raw['date_completed'] >= pd.to_datetime(delta_start, utc=True)) &
+            (df_raw['date_completed'] < pd.to_datetime(st.session_state.dates[0], utc=True))
+            ].copy()
+        cols = st.columns(3)
+        cols[0].metric(label = "Total antall timer", value = f"{df['hours_worked'].sum():,.0f}", 
+                    delta = f"{df['hours_worked'].sum() - delta_df['hours_worked'].sum():,.0f} fra forrige periode")
+        cols[1].metric(label = "Totale kostnader", value = f"{df['cost'].sum():,.0f} NOK",
+                    delta = f"{df['cost'].sum() - delta_df['cost'].sum():,.0f} NOK fra forrige periode")
+        cols[2].metric(label = "Antall unike brukere", value = f"{df['worker_name'].nunique():,.0f}",
+                    delta = f"{df['worker_name'].nunique() - delta_df['worker_name'].nunique():,.0f} fra forrige periode")
 
     @staticmethod
     def mk_gruppe(work_type : str):
@@ -81,17 +169,25 @@ class DatabaseModule(ABC):
             if rate["season"] == season:
                 break
 
-        if "role" not in row or "work_type" not in row:
-                raise ValueError("'role' or 'work_type' is missing from row!")
+        if "role" not in row or pd.isna(row["role"]):
+                raise ValueError(f"'role' is missing from row! row: {row.to_dict()}")
+        if "work_type" not in row or pd.isna(row["work_type"]):
+                raise ValueError(f"'work_type' is missing from row! row: {row.to_dict()}")
+        
+        if row["role"] == "u13":
+            logger.info(f"Role is 'u13' for row {row.to_dict()}. Setting cost to 0.")
+            return 0
         
         if row["work_type"] == "glenne_vedpakking" and row["role"] in ["genf"]:
             if not "vedsekk" in rate:
                 logger.warning("vedpakking is missing from rates. Adding 15 kr as default value")
             return row["units_completed"] * rate.get("vedsekk", 15)
         else:
-            print(f' ======= CURRENT ROW: {row.to_dict()} ======= ')
-            return row["hours_worked"] * rate.get(row["role"])
-        
+            #print(f' ======= CURRENT ROW: {row.to_dict()} ======= ')
+            try:
+                return row["hours_worked"] * rate.get(row["role"])
+            except TypeError as e:
+                logger.warning(f"Error calculating cost for row \n{row.to_dict()} \nand rate \n{rate}\n: {e}\n\n")
 
 
 class BigQueryModule(DatabaseModule):
@@ -130,7 +226,6 @@ class BigQueryModule(DatabaseModule):
         if not df.empty:
             return df
         #return df.loc[df["role"].isin(["genf","hjelpementor",]), :].copy()
-
 
 class SupabaseModule(DatabaseModule):
     def __init__(self):
@@ -227,9 +322,6 @@ class SupabaseModule(DatabaseModule):
         else:
             raise ValueError(f"Invalid type_: {type_!r} (must be 'year' or 'season')")
 
-   
-
-
 class SupaBaseApi(DatabaseModule):
     def __init__(self):
         super().__init__()
@@ -238,6 +330,7 @@ class SupaBaseApi(DatabaseModule):
         self.supabase_api_key = st.secrets["supabase"].get("buk_cash").get("API_KEY")
         self.supabase = create_client(self.supabase_url, self.supabase_key)
 
+    @st.cache_data(ttl=3600,show_spinner=False)
     def run_query(self, query: str):
         pass
     
@@ -433,7 +526,6 @@ class SupaBaseApi(DatabaseModule):
         bc_m["role"] = bc_m["date_of_birth"].apply(lambda x: self.apply_role(x, season=st.session_state.get("season", None)))
         df = pd.merge(df_bc, bc_m.loc[:,['id','email',"bank_account_number","role"]], left_on='worker_id', right_on='id', how='left')
         to_keep = ["worker_id",
-                   #"cost",
                 "hours_worked",
                 "worker_first_name",
                 "worker_last_name",
@@ -443,34 +535,41 @@ class SupaBaseApi(DatabaseModule):
                 "bank_account_number",
                 "role","season",
                 "units_completed",
-                #"hourly_rate",
                 "comments",
                 ]
         df = df.loc[:,to_keep].copy()
+        df["date_completed"] = pd.to_datetime(df["date_completed"], errors='coerce', utc=True)
+        df["units_completed"] = df["units_completed"].fillna(0)
         return df
 
+class CombinedModule(DatabaseModule):
+    def __init__(self):
+        super().__init__()
+        self.supabase_api = get_supabase_api()
+        self.supabase_module = get_supabase_module()
 
+    def load_all_registrations(self):
+        df_new = self.supabase_api.build_combined()
+        df_old = self.supabase_module.run_query("registrations")
+        df = pd.concat([df_old, df_new], ignore_index=True)
+        rates = self.supabase_module.run_query("rates", return_dataframe=False)
+        df["cost"] =  df.apply(lambda row : self.supabase_api.apply_cost(row, rates,), axis = 1)
+        df["units_completed"] = df["units_completed"].fillna(0)
+        df["date_completed"] = pd.to_datetime(df["date_completed"], errors='coerce', utc=True)
+        return df
 
-def load_all_registrations():
-    api = get_supabase_api()
-    sm = get_supabase_module()
-
-    df_new = api.build_combined()
-    df_old = sm.run_query("registrations")
-    df = pd.concat([df_old, df_new], ignore_index=True)
-    rates = sm.run_query("rates", return_dataframe=False)
-    df["cost"] =  df.apply(lambda row : api.apply_cost(row, rates,), axis = 1)
-    return df
-
-@st.cache_resource(ttl=3600, show_spinner=False)
+#@st.cache_resource(ttl=3600, show_spinner=False)
 def get_supabase_api():
     return SupaBaseApi()
 
-@st.cache_resource(ttl=3600, show_spinner=False)
+#@st.cache_resource(ttl=3600, show_spinner=False)
 def get_bigquery_module():
     return BigQueryModule()
 
-@st.cache_resource(ttl=3600, show_spinner=False)
+#@st.cache_resource(ttl=3600, show_spinner=False)
 def get_supabase_module():
     return SupabaseModule()
 
+#@st.cache_resource(ttl=3600, show_spinner=False)
+def get_combined_module():
+    return CombinedModule()

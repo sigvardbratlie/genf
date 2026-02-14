@@ -16,6 +16,7 @@ init()
 api = get_supabase_api()
 
 
+
 SidebarComponent().sidebar_setup(disable_datepicker=False, disable_custom_datepicker=False)   
 st.title("Buk.cash API")
 #st.info(st.secrets["buk_cash"])
@@ -115,6 +116,14 @@ with tabs[1]:
         members_bc = pd.DataFrame(data)
         members_bc = members_bc.loc[members_bc["role"] != "parent"].copy()
         members_bc["date_of_birth"] = pd.to_datetime(members_bc["date_of_birth"], errors='coerce', format="%Y-%m-%d")
+        members_bc["role"] = members_bc.apply(lambda row: api.apply_role(row["date_of_birth"]) if pd.notnull(row["date_of_birth"]) else "unknown", axis=1)
+        
+        with st.expander(f"Medlemmer under 13 år (rolle 'u13')", expanded=False):
+            for row in members_bc.loc[members_bc["role"]=="u13",:].itertuples():
+                st.warning(f"{row.first_name} {row.last_name} (ID: {row.id}) er under 14 år og har rollen 'u13'. Kostnaden for denne personen vil settes til 0.")
+        with st.expander(f"Medlemmer med ukjent alder (rolle 'unknown')", expanded=False):
+            for row in members_bc.loc[members_bc["role"]=="unknown",:].itertuples():
+                st.error(f"{row.first_name} {row.last_name} (ID: {row.id}) har ukjent alder og får rollen 'unknown'. Vennligst sjekk fødselsdatoen for denne personen.")
         
         # Create display dataframe with datetime column
         df_members = members_bc[["id","custom_id","email","role","first_name","last_name","bank_account_number","date_of_birth"]].copy()
@@ -183,7 +192,6 @@ with tabs[1]:
                 except Exception as e:
                     st.error(f"Error updating members database: {e}")
                     logger.error(f"Error updating members database: {e}", exc_info=True)
-
 
 with tabs[2]:
     st.markdown("## Jobber")

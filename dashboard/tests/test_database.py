@@ -26,8 +26,8 @@ def test_apply_role():
     assert DatabaseModule().apply_role(birth_date = "2012-05-15", season = "25/26") == "genf"
     assert DatabaseModule().apply_role(birth_date = datetime(2012, 12, 15), season = "25/26") == "genf"
     assert DatabaseModule().apply_role(birth_date = date(2008, 5, 15), season = "25/26") == "hjelpementor"
-    assert DatabaseModule().apply_role(birth_date = "2007-01-15", season = "25/26") == "mentor"
-    assert DatabaseModule().apply_role(birth_date = date(2013, 11, 2), season = "25/26") == None
+    assert DatabaseModule().apply_role(birth_date = "2007-01-15", season = None) == "mentor"
+    assert DatabaseModule().apply_role(birth_date = date(2013, 11, 2), season = "25/26") == "u13"
 
 def test_mk_gruppe():
     assert DatabaseModule().mk_gruppe("glenne_vedpakking") == "glenne"
@@ -61,52 +61,4 @@ def test_apply_cost():
     assert DatabaseModule().apply_cost(row, rates) == 150*10
 
 
-def test_load_all_registrations():
-    from dashboard.components.database_module import load_all_registrations
-    from .fixtures.data_buk_cash import combined_data
-    from .fixtures.data_genf import registrations
 
-    with patch("dashboard.components.database_module.get_supabase_api") as mock_get_api, \
-         patch("dashboard.components.database_module.get_supabase_module") as mock_get_sm:
-
-
-        mock_api = Mock()   
-        mock_get_api.return_value = mock_api    
-        mock_api.build_combined.return_value = pd.DataFrame(combined_data)
-
-        mock_sm = Mock()
-        mock_get_sm.return_value = mock_sm
-        mock_sm.run_query.side_effect = [     
-            pd.DataFrame(registrations),            
-            {"some": "rates data"}      
-        ]
-        
-        df = load_all_registrations()
-
-        assert isinstance(df, pd.DataFrame)
-        assert "cost" in df.columns
-
-@pytest.mark.integration
-def test_load_all_registrations_integration():
-    from dashboard.components.database_module import load_all_registrations
-    import os
-    with patch("dashboard.components.database_module.st") as mock_st:
-        # Define mock secrets to avoid TypeError in create_client
-        SUPABASE_URL = "https://qvkdyodpfauvpsamrmew.supabase.co"
-        SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2a2R5b2RwZmF1dnBzYW1ybWV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkzNzMyMDEsImV4cCI6MjA2NDk0OTIwMX0.gMscCXj733-_cT87_ErXPHaaa3YQdWE5gjpJ8XZ4yXI"
-        API_KEY="cf364efb26fca32391f4190bf077bdb2"
-        mock_st.secrets = {
-            "supabase": {
-                "buk_cash": {
-                    "SUPABASE_URL": SUPABASE_URL,
-                    "SUPABASE_ANON_KEY": SUPABASE_ANON_KEY,
-                    "API_KEY": API_KEY
-                },
-                "genf" : {"SUPABASE_URL ": os.getenv("SUPABASE_URL"),
-                          "SUPABASE_ANON_KEY": os.getenv("SUPABASE_ANON_KEY"),}
-            }
-        }
-    
-        df = load_all_registrations()
-        assert isinstance(df, pd.DataFrame)
-        assert "cost" in df.columns
