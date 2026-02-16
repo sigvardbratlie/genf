@@ -16,3 +16,6 @@ ia/
 config/
 *secrets.toml
 *.csv
+
+*ipynb
+*ipynb_checkpoints/
