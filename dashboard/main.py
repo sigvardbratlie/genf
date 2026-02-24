@@ -1,10 +1,22 @@
+from pathlib import Path
+import os
+import logging
 import streamlit as st
 import pandas as pd
 import numpy as np
+logger = logging.getLogger(__name__)
+
+if not Path(".").resolve().parent.name == "dashboard":
+    logger.warning(f'Unexpected working directory: {Path(".").resolve()}. Expected to be in "dashboard" directory.')
+    try:
+        os.chdir("./dashboard")
+    except Exception as e:
+        logger.error(f"Failed to change directory to 'dashboard': {e}")
+        st.error("Feil ved oppstart: Kunne ikke sette arbeidskatalog til 'dashboard'. Vennligst start applikasjonen fra riktig katalog.")
+        st.stop()
+
 from dashboard import init
 from components import SidebarComponent
-
-
 
 init()
 st.title("GENF Dashboard")
