@@ -5,12 +5,13 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "pytest>=9.0.2",
 ]
 
 [tool.uv.workspace]
 members = [
     "dashboard",
     "contest",
-    "form",
-    "survey_presentation",
+    "survey",
+    "playground",
 ]

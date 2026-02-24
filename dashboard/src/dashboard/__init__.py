@@ -1,2 +1,3 @@
-def main() -> None:
-    print("Hello from dashboard!")
+from .utilities import init
+
+_all__ = ["init"]
