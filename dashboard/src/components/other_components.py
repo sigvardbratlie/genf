@@ -44,16 +44,21 @@ class DownloadComponent:
         bq_module: "BigQueryModule",
         target_table: str = "raw.buk_cash",
         write_type: Literal["append", "replace", "merge"] = "append",
+        merge_on: "str | list[str]" = "id",
+        key: str = "",
     ):
-        if st.button("Oppdater data i BigQuery", icon="🔄", key=str(uuid4())):
-            try:
-                n = bq_module.write_df(df, target_table=target_table, write_type=write_type)
-                if n == 0:
-                    st.info("Ingen nye rader å legge til — dataen er allerede oppdatert.")
-                else:
-                    st.success(f"{n} rader lastet opp til `{target_table}` ({write_type}).")
-            except Exception as e:
-                st.error(f"Feil ved oppdatering av BigQuery: {e}")
+        btn_key = f"bq_update_{target_table}_{write_type}_{key}"
+        if st.button("Oppdater data i BigQuery", icon="🔄", key=btn_key):
+            with st.spinner(f"Laster opp til `{target_table}`..."):
+                try:
+                    n = bq_module.write_df(df, target_table=target_table, write_type=write_type, merge_on=merge_on)
+                    if n == 0:
+                        st.info("Ingen nye rader å legge til — dataen er allerede oppdatert.")
+                    else:
+                        st.success(f"{n} rader lastet opp til `{target_table}` ({write_type}).")
+                except Exception as e:
+                    st.error(f"Feil ved oppdatering av BigQuery: {e}")
+                    raise
 
         
 class PlotlyComponent:

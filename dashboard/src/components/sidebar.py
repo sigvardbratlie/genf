@@ -29,7 +29,7 @@ class SidebarComponent:
                 st.session_state.dates = (start_date, end_date)
             
 
-    def custom_dates_picker(self, disable_datepicker = False):
+    def custom_dates_picker(self, disable_datepicker = False, disable_season_picker = False, ):
         with st.expander("Custom Date Range",expanded = True):
             choices = []
             for i in range(4):
@@ -51,7 +51,7 @@ class SidebarComponent:
                                     options = ["25/26","24/25","23/24","22/23"] , 
                                     index = None, 
                                     horizontal=True,
-                                    disabled=disable_datepicker)
+                                    disabled=disable_season_picker)
             if custom_season:
                 st.session_state.season = custom_season
                 if custom_season == "25/26":
@@ -93,7 +93,11 @@ class SidebarComponent:
             st.session_state.role = [role_map[r] if r in role_map else r for r in role]
 
 
-    def sidebar_setup(self, disable_datepicker = False,disable_rolepicker = False,disable_custom_datepicker = False,):
+    def sidebar_setup(self, 
+                      disable_datepicker = False,
+                      disable_rolepicker = False,
+                      disable_custom_datepicker = False,
+                      disable_seasonpicker = False):
         with st.sidebar:
             st.page_link(page="main.py", label="🏠 Home")
             st.page_link("pages/timer.py", label = "Timer", icon="⏰")
@@ -101,7 +105,8 @@ class SidebarComponent:
             st.page_link("pages/buk_cash.py", label="Buk.cash", icon="💰")
 
             #season_picker(disable_seasonpicker=disable_seasonpicker)
-            self.custom_dates_picker(disable_datepicker=disable_custom_datepicker)
+            self.custom_dates_picker(disable_datepicker=disable_custom_datepicker, 
+                                     disable_season_picker=disable_seasonpicker)
             self.date_picker(disable_datepicker=disable_datepicker)
             self.role_picker(disable_rolepicker=disable_rolepicker)
             

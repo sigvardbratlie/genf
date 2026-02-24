@@ -24,8 +24,7 @@ tabs = st.tabs(["Timer", "Brukere", "Jobber"])
 with tabs[0]:
     st.info(f"Viser for periode {st.session_state.dates[0]} til {st.session_state.dates[1]}")
     # ==== DATA CLEANING =====
-    df_raw = api.fetch_job_logs()
-    df = api.filter_df_by_dates(df_raw.copy(), dates=st.session_state.dates,)
+    df = api.fetch_job_logs(from_date=st.session_state.dates[0], to_date=st.session_state.dates[1])
     st.dataframe(df, use_container_width=True)
     
     
@@ -36,7 +35,7 @@ with tabs[0]:
     with cols[1]:
         DownloadComponent().render_xlsx_download(df, filename="buk_cash")
     with cols[2]:
-        DownloadComponent().render_bigquery_update(df = df, bq_module=bq_module, target_table="raw.job_logs", write_type="replace")
+        DownloadComponent().render_bigquery_update(df = df, bq_module=bq_module, target_table="raw.job_logs", write_type="merge")
     
     
 with tabs[1]:
@@ -82,7 +81,7 @@ with tabs[1]:
         with cols[1]:
             DownloadComponent().render_xlsx_download(raw_data, filename="buk_cash")
         with cols[2]:
-            DownloadComponent().render_bigquery_update(raw_data, bq_module=bq_module, target_table="raw.users", write_type="replace")
+            DownloadComponent().render_bigquery_update(raw_data, bq_module=bq_module, target_table="raw.users", write_type="merge")
 
 
 

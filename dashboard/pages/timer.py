@@ -15,7 +15,7 @@ init()
 
 st.title("Timer og lønn")
 st.divider()
-SidebarComponent().sidebar_setup()
+SidebarComponent().sidebar_setup(disable_seasonpicker=True)
 
 api = get_supabase_api()
 df_raw = api.build_combined()

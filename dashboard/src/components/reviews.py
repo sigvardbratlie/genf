@@ -4,15 +4,22 @@ import plotly.express as px
 import plotly.graph_objects as go
 import tqdm
 from typing import Literal
-from dashboard.components import get_supabase_module
+from components import get_bigquery_module
 
 
-class SeasonalReviewComponent:
+class SeasonalBase:
     def __init__(self):
+        self.bq = get_bigquery_module()
+        self.df = self.bq.load_registrations()
+        self.camp_rates = self.bq.load_camp_rates()
+
+
+class SeasonalReviewComponent(SeasonalBase):
+    def __init__(self,):
+        super().__init__()
         self.filter_inactive_bool = False
         self.filter_value = 500
 
-    
     def _filter_inactive(self,):
         self.filter_inactive_bool = st.toggle("Filter Inactive Members", value=self.filter_inactive_bool)
         if self.filter_inactive_bool:
@@ -155,9 +162,11 @@ class SeasonalReviewComponent:
             st.plotly_chart(fig, use_container_width=True)
 
 
-class YearlyReviewComponent:
+class YearlyReviewComponent(SeasonalBase):
     def __init__(self):
-        self.sb = get_supabase_module()
+        super().__init__()
+        self.filter_inactive_bool = False
+        self.filter_value = 500
 
     #========================
     #     BAR PLOT   
@@ -169,11 +178,10 @@ class YearlyReviewComponent:
         st.markdown("Camp kostnader kan skjules/vises (bruk `Skjul Camp kostnader`-knappen) for å bedre se fordelingen av kostnader blant ulike grupper.")
         hide_camp = st.toggle("Skjul Camp kostnader", value=False)
 
-        df = self.sb.load_work_logs()
-        df = df.loc[df["role"].isin(st.session_state.role),:].copy() if st.session_state.role else df.copy()
+        df = self.df.loc[self.df["role"].isin(st.session_state.role),:].copy() if st.session_state.role else self.df.copy()
 
         #df_filtered = df
-        df_year = df_filtered.groupby([df_filtered['date_completed'].dt.year, 'gruppe']).agg({'hours_worked':'sum','cost':'sum'}).reset_index()
+        df_year = df.groupby([df['date_completed'].dt.year, 'gruppe']).agg({'hours_worked':'sum','cost':'sum'}).reset_index()
         df_year = df_year.loc[df_year['date_completed'] >= 2023]
         fig = go.Figure()
         for gruppe in df_year['gruppe'].unique():
@@ -184,10 +192,6 @@ class YearlyReviewComponent:
                 name=gruppe,
                 offsetgroup='1'  # Samme gruppe = stacked
             ))
-
-        #prices = run_query("SELECT * FROM admin.rates")
-        camp_prices = self.sb.run_query(table = "camp_rates")
-        #members_count = self.sb.run_query(table = "yearly_count")
 
         year = 2026
         

@@ -6,7 +6,7 @@ import calendar
 import pandas as pd
 from supabase import create_client
 from datetime import date, datetime,timedelta
-from typing import Optional,Any, List, Dict,Tuple,Literal
+from typing import Optional,Any, List, Dict,Tuple,Literal, Union
 import logging
 from abc import ABC, abstractmethod
 
@@ -225,22 +225,28 @@ class BigQueryModule(DatabaseModule):
         data = self.run_query(query)
         return data
 
+    def load_camp_rates(self):
+        query = """SELECT * FROM admin.camp_rates"""
+        data = self.run_query(query)
+        return data
+
     def write_df(
         self,
         df: pd.DataFrame,
         target_table: str = "raw.buk_cash",
         write_type: Literal["append", "replace", "merge"] = "append",
         project_id: str = "genf-446213",
-        merge_keys: Tuple[str, ...] = ("worker_id", "date_completed", "work_type"),
+        merge_on: Union[str, List[str]] = "id",
     ) -> int:
         """
         Skriver df til BigQuery. Returnerer antall rader skrevet.
 
         append  – inserter bare rader nyere enn MAX(date_completed) i måltabellen.
         replace – WRITE_TRUNCATE: sletter og skriver alt på nytt.
-        merge   – upsert via temp-tabell + MERGE SQL på merge_keys.
+        merge   – upsert via temp-tabell + MERGE SQL på merge_on.
         """
         full_table_id = f"{project_id}.{target_table}"
+        keys = [merge_on] if isinstance(merge_on, str) else merge_on
 
         df_clean = df.copy()
         for col in df_clean.select_dtypes(include=["datetimetz"]).columns:
@@ -275,6 +281,10 @@ class BigQueryModule(DatabaseModule):
             return len(df_clean)
 
         if write_type == "merge":
+            missing = [k for k in keys if k not in df_clean.columns]
+            if missing:
+                raise ValueError(f"merge_on kolonne(r) mangler i df: {missing}")
+
             temp_table_id = (
                 f"{full_table_id}_temp_{pd.Timestamp.now().strftime('%Y%m%d%H%M%S')}"
             )
@@ -283,12 +293,12 @@ class BigQueryModule(DatabaseModule):
                 df_clean, temp_table_id, job_config=job_config
             ).result()
 
+            on_clause = " AND ".join(f"T.{k} = S.{k}" for k in keys)
             update_cols = ", ".join(
-                f"T.{c} = S.{c}" for c in df_clean.columns if c not in merge_keys
+                f"T.{c} = S.{c}" for c in df_clean.columns if c not in keys
             )
             insert_cols = ", ".join(df_clean.columns)
             insert_vals = ", ".join(f"S.{c}" for c in df_clean.columns)
-            on_clause = " AND ".join(f"T.{k} = S.{k}" for k in merge_keys)
 
             self.client.query(f"""
                 MERGE `{full_table_id}` T
