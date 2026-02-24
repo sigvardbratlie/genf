@@ -227,101 +227,6 @@ class BigQueryModule(DatabaseModule):
             return df
         #return df.loc[df["role"].isin(["genf","hjelpementor",]), :].copy()
 
-class SupabaseModule(DatabaseModule):
-    def __init__(self):
-        super().__init__()
-        self.supabase_url = st.secrets["supabase"].get("genf").get("SUPABASE_URL")
-        self.supabase_api_key = st.secrets["supabase"].get("genf").get("SUPABASE_ANON_KEY")
-        self.supabase = create_client(self.supabase_url, self.supabase_api_key)
-
-    @st.cache_data(ttl=3600,show_spinner=False)
-    def run_query(_self, table_name: str, cols : list = [], return_dataframe : bool = True) -> pd.DataFrame | dict:
-        select_cols = ", ".join(cols) if cols else "*"
-        response = _self.supabase.table(table_name).select(select_cols).execute()
-        data = response.data
-        if return_dataframe:
-            if data is None:
-                    return pd.DataFrame()
-            return pd.DataFrame(data)
-        else:
-            if data is None:
-                return {}
-            return data
-    
-    def _calc_camp_season(self, season: str, role: str) -> float:
-        """Calculate camp cost for a season (e.g. '2024/2025')"""
-        if role in ["genf", "hjelpementor"]:
-            age_group = "u"
-        else:
-            age_group = "o"
-
-        data = self.run_query("camp_rates")
-        if data is None or data.empty:
-            raise ValueError("Camp rates data is empty or not available")
-
-        try:
-            year1, year2 = map(int, season.split("/"))
-        except (ValueError, IndexError) as e:
-            raise ValueError(f"Invalid season format: {season!r}. Expected e.g. '2024/2025'") from e
-
-        # Get values - with proper error handling
-        try:
-            nc = data.loc[data["year"] == year1, age_group + "18_s"].item()
-            sc_pc = data.loc[data["year"] == year2, age_group + "18_l"].item() * 2
-        except (KeyError, ValueError, IndexError) as e:
-            raise ValueError(
-                f"Missing camp rate data for season {season} "
-                f"(years {year1}/{year2}, group {age_group})"
-            ) from e
-
-        return nc + sc_pc
-
-    def _calc_camp_year(self, year: int, role: str) -> float:
-        """Calculate camp cost for a single year"""
-        if role in ["genf", "hjelpementor"]:
-            age_group = "u"
-        else:
-            age_group = "o"
-
-        data = self.run_query("camp_rates")
-        if data is None or data.empty:
-            raise ValueError("Camp rates data is empty or not available")
-
-        try:
-            nc = data.loc[data["year"] == year, age_group + "18_s"].item()
-            sc_pc = data.loc[data["year"] == year, age_group + "18_l"].item() * 2
-        except (KeyError, ValueError, IndexError) as e:
-            raise ValueError(
-                f"Missing camp rate data for year {year} (group {age_group})"
-            ) from e
-
-        return nc + sc_pc
-
-    def calc_camp_cost(
-        self,
-        period: str,
-        role: Literal["genf", "hjelpementor", "mentor"],
-        type_: Literal["year", "season"] = "season"
-    ) -> float:
-        """
-        Main entry point to calculate camp cost.
-        
-        Args:
-            period: "2024/2025" (season) or "2025" (year)
-            role: participant role
-            type_: "season" or "year"
-        """
-        if type_ == "season":
-            return self._calc_camp_season(period, role)
-        elif type_ == "year":
-            try:
-                year = int(period)
-            except ValueError:
-                raise ValueError(f"Invalid year format for type_='year': {period!r}")
-            return self._calc_camp_year(year, role)
-        else:
-            raise ValueError(f"Invalid type_: {type_!r} (must be 'year' or 'season')")
-
 class SupaBaseApi(DatabaseModule):
     def __init__(self):
         super().__init__()
@@ -542,21 +447,118 @@ class SupaBaseApi(DatabaseModule):
         df["units_completed"] = df["units_completed"].fillna(0)
         return df
 
-class CombinedModule(DatabaseModule):
-    def __init__(self):
-        super().__init__()
-        self.supabase_api = get_supabase_api()
-        self.supabase_module = get_supabase_module()
 
-    def load_all_registrations(self):
-        df_new = self.supabase_api.build_combined()
-        df_old = self.supabase_module.run_query("registrations")
-        df = pd.concat([df_old, df_new], ignore_index=True)
-        rates = self.supabase_module.run_query("rates", return_dataframe=False)
-        df["cost"] =  df.apply(lambda row : self.supabase_api.apply_cost(row, rates,), axis = 1)
-        df["units_completed"] = df["units_completed"].fillna(0)
-        df["date_completed"] = pd.to_datetime(df["date_completed"], errors='coerce', utc=True)
-        return df
+
+# class SupabaseModule(DatabaseModule):
+#     def __init__(self):
+#         super().__init__()
+#         self.supabase_url = st.secrets["supabase"].get("genf").get("SUPABASE_URL")
+#         self.supabase_api_key = st.secrets["supabase"].get("genf").get("SUPABASE_ANON_KEY")
+#         self.supabase = create_client(self.supabase_url, self.supabase_api_key)
+
+#     @st.cache_data(ttl=3600,show_spinner=False)
+#     def run_query(_self, table_name: str, cols : list = [], return_dataframe : bool = True) -> pd.DataFrame | dict:
+#         select_cols = ", ".join(cols) if cols else "*"
+#         response = _self.supabase.table(table_name).select(select_cols).execute()
+#         data = response.data
+#         if return_dataframe:
+#             if data is None:
+#                     return pd.DataFrame()
+#             return pd.DataFrame(data)
+#         else:
+#             if data is None:
+#                 return {}
+#             return data
+    
+#     def _calc_camp_season(self, season: str, role: str) -> float:
+#         """Calculate camp cost for a season (e.g. '2024/2025')"""
+#         if role in ["genf", "hjelpementor"]:
+#             age_group = "u"
+#         else:
+#             age_group = "o"
+
+#         data = self.run_query("camp_rates")
+#         if data is None or data.empty:
+#             raise ValueError("Camp rates data is empty or not available")
+
+#         try:
+#             year1, year2 = map(int, season.split("/"))
+#         except (ValueError, IndexError) as e:
+#             raise ValueError(f"Invalid season format: {season!r}. Expected e.g. '2024/2025'") from e
+
+#         # Get values - with proper error handling
+#         try:
+#             nc = data.loc[data["year"] == year1, age_group + "18_s"].item()
+#             sc_pc = data.loc[data["year"] == year2, age_group + "18_l"].item() * 2
+#         except (KeyError, ValueError, IndexError) as e:
+#             raise ValueError(
+#                 f"Missing camp rate data for season {season} "
+#                 f"(years {year1}/{year2}, group {age_group})"
+#             ) from e
+
+#         return nc + sc_pc
+
+#     def _calc_camp_year(self, year: int, role: str) -> float:
+#         """Calculate camp cost for a single year"""
+#         if role in ["genf", "hjelpementor"]:
+#             age_group = "u"
+#         else:
+#             age_group = "o"
+
+#         data = self.run_query("camp_rates")
+#         if data is None or data.empty:
+#             raise ValueError("Camp rates data is empty or not available")
+
+#         try:
+#             nc = data.loc[data["year"] == year, age_group + "18_s"].item()
+#             sc_pc = data.loc[data["year"] == year, age_group + "18_l"].item() * 2
+#         except (KeyError, ValueError, IndexError) as e:
+#             raise ValueError(
+#                 f"Missing camp rate data for year {year} (group {age_group})"
+#             ) from e
+
+#         return nc + sc_pc
+
+#     def calc_camp_cost(
+#         self,
+#         period: str,
+#         role: Literal["genf", "hjelpementor", "mentor"],
+#         type_: Literal["year", "season"] = "season"
+#     ) -> float:
+#         """
+#         Main entry point to calculate camp cost.
+        
+#         Args:
+#             period: "2024/2025" (season) or "2025" (year)
+#             role: participant role
+#             type_: "season" or "year"
+#         """
+#         if type_ == "season":
+#             return self._calc_camp_season(period, role)
+#         elif type_ == "year":
+#             try:
+#                 year = int(period)
+#             except ValueError:
+#                 raise ValueError(f"Invalid year format for type_='year': {period!r}")
+#             return self._calc_camp_year(year, role)
+#         else:
+#             raise ValueError(f"Invalid type_: {type_!r} (must be 'year' or 'season')")
+
+# class CombinedModule(DatabaseModule):
+#     def __init__(self):
+#         super().__init__()
+#         self.supabase_api = get_supabase_api()
+#         self.supabase_module = get_supabase_module()
+
+#     def load_all_registrations(self):
+#         df_new = self.supabase_api.build_combined()
+#         df_old = self.supabase_module.run_query("registrations")
+#         df = pd.concat([df_old, df_new], ignore_index=True)
+#         rates = self.supabase_module.run_query("rates", return_dataframe=False)
+#         df["cost"] =  df.apply(lambda row : self.supabase_api.apply_cost(row, rates,), axis = 1)
+#         df["units_completed"] = df["units_completed"].fillna(0)
+#         df["date_completed"] = pd.to_datetime(df["date_completed"], errors='coerce', utc=True)
+#         return df
 
 #@st.cache_resource(ttl=3600, show_spinner=False)
 def get_supabase_api():
@@ -566,10 +568,15 @@ def get_supabase_api():
 def get_bigquery_module():
     return BigQueryModule()
 
-#@st.cache_resource(ttl=3600, show_spinner=False)
-def get_supabase_module():
-    return SupabaseModule()
+# #@st.cache_resource(ttl=3600, show_spinner=False)
+# def get_supabase_module():
+#     return SupabaseModule()
 
-#@st.cache_resource(ttl=3600, show_spinner=False)
-def get_combined_module():
-    return CombinedModule()
+
+
+
+# #@st.cache_resource(ttl=3600, show_spinner=False)
+# def get_combined_module():
+#     return CombinedModule()
+
+

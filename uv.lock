@@ -11,6 +11,8 @@ members = [
     "contest",
     "dashboard",
     "genf",
+    "playground",
+    "survey",
 ]
 
 [[package]]
@@ -439,6 +441,7 @@ dependencies = [
     { name = "openpyxl" },
     { name = "pandas" },
     { name = "plotly" },
+    { name = "pydantic", extra = ["email"] },
     { name = "python-dotenv" },
     { name = "streamlit" },
     { name = "supabase" },
@@ -456,6 +459,7 @@ requires-dist = [
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "plotly", specifier = ">=6.5.1" },
+    { name = "pydantic", extras = ["email"], specifier = ">=2.12.5" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "streamlit", specifier = ">=1.52.2" },
     { name = "supabase", specifier = ">=2.27.1" },
@@ -487,6 +491,28 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/5a/d3/8ae2869247df154b64c1884d7346d412fed0c49df84db635aab2d1c40e62/deprecation-2.1.0.tar.gz", hash = "sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff", size = 173788, upload-time = "2020-04-20T14:23:38.738Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/02/c3/253a89ee03fc9b9682f1541728eb66db7db22148cd94f89ab22528cd1e1b/deprecation-2.1.0-py2.py3-none-any.whl", hash = "sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a", size = 11178, upload-time = "2020-04-20T14:23:36.581Z" },
+]
+
+[[package]]
+name = "dnspython"
+version = "2.8.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8c/8b/57666417c0f90f08bcafa776861060426765fdb422eb10212086fb811d26/dnspython-2.8.0.tar.gz", hash = "sha256:181d3c6996452cb1189c4046c61599b84a5a86e099562ffde77d26984ff26d0f", size = 368251, upload-time = "2025-09-07T18:58:00.022Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ba/5a/18ad964b0086c6e62e2e7500f7edc89e3faa45033c71c1893d34eed2b2de/dnspython-2.8.0-py3-none-any.whl", hash = "sha256:01d9bbc4a2d76bf0db7c1f729812ded6d912bd318d3b1cf81d30c0f845dbf3af", size = 331094, upload-time = "2025-09-07T18:57:58.071Z" },
+]
+
+[[package]]
+name = "email-validator"
+version = "2.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dnspython" },
+    { name = "idna" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f5/22/900cb125c76b7aaa450ce02fd727f452243f2e91a61af068b40adba60ea9/email_validator-2.3.0.tar.gz", hash = "sha256:9fc05c37f2f6cf439ff414f8fc46d917929974a82244c20eb10231ba60c54426", size = 51238, upload-time = "2025-08-26T13:09:06.831Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/de/15/545e2b6cf2e3be84bc1ed85613edd75b8aea69807a71c26f4ca6a9258e82/email_validator-2.3.0-py3-none-any.whl", hash = "sha256:80f13f623413e6b197ae73bb10bf4eb0908faf509ad8362c5edeb0be7fd450b4", size = 35604, upload-time = "2025-08-26T13:09:05.858Z" },
 ]
 
 [[package]]
@@ -1516,6 +1542,29 @@ wheels = [
 ]
 
 [[package]]
+name = "playground"
+version = "0.1.0"
+source = { editable = "playground" }
+dependencies = [
+    { name = "db-dtypes" },
+    { name = "google-cloud-bigquery" },
+    { name = "pandas" },
+    { name = "pydantic", extra = ["email"] },
+    { name = "python-dotenv" },
+    { name = "supabase" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "db-dtypes", specifier = ">=1.5.0" },
+    { name = "google-cloud-bigquery", specifier = ">=3.40.0" },
+    { name = "pandas", specifier = ">=2.3.3" },
+    { name = "pydantic", extras = ["email"], specifier = ">=2.12.5" },
+    { name = "python-dotenv", specifier = ">=1.2.1" },
+    { name = "supabase", specifier = ">=2.27.1" },
+]
+
+[[package]]
 name = "plotly"
 version = "6.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1736,6 +1785,11 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/69/44/36f1a6e523abc58ae5f928898e4aca2e0ea509b5aa6f6f392a5d882be928/pydantic-2.12.5.tar.gz", hash = "sha256:4d351024c75c0f085a9febbb665ce8c0c6ec5d30e903bdb6394b7ede26aebb49", size = 821591, upload-time = "2025-11-26T15:11:46.471Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5a/87/b70ad306ebb6f9b585f114d0ac2137d792b48be34d732d60e597c2f8465a/pydantic-2.12.5-py3-none-any.whl", hash = "sha256:e561593fccf61e8a20fc46dfc2dfe075b8be7d0188df33f221ad1f0139180f9d", size = 463580, upload-time = "2025-11-26T15:11:44.605Z" },
+]
+
+[package.optional-dependencies]
+email = [
+    { name = "email-validator" },
 ]
 
 [[package]]
@@ -2531,6 +2585,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ee/cd/76fdac891295148b88938e33cf5dee290692d25b5e05b8ba0132bf6e4aa3/supabase_functions-2.27.1.tar.gz", hash = "sha256:0982f95fddee741d9b59307e9e115f370616533990e9cebb5b8ac06439be7026", size = 4524, upload-time = "2026-01-06T19:07:29.234Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9c/1f/3cb444bed150b5da2c87df5b3ccde620f059b3755ccdf8d262a055c80980/supabase_functions-2.27.1-py3-none-any.whl", hash = "sha256:d405b51997bd83da6914fd8e0fddb9d215783c45b5efbda6b89f6225aac16d31", size = 8473, upload-time = "2026-01-06T19:07:28.205Z" },
+]
+
+[[package]]
+name = "survey"
+version = "0.1.0"
+source = { editable = "survey" }
+dependencies = [
+    { name = "google-auth" },
+    { name = "google-cloud-bigquery" },
+    { name = "streamlit" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "google-auth", specifier = ">=2.47.0" },
+    { name = "google-cloud-bigquery", specifier = ">=3.40.0" },
+    { name = "streamlit", specifier = ">=1.52.2" },
 ]
 
 [[package]]
