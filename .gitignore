@@ -16,3 +16,6 @@ ia/
 config/
 *secrets.toml
 *.csv
+
+contest/
+playground/
