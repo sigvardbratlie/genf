@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class SidebarComponent:
     def __init__(self):
-        self.start_date = "2025-08-01"
+        self.start_date = "2026-01-01"
         self.end_date = datetime.today().date().isoformat()
 
     def season_picker(self, default = 0,disable_seasonpicker = False):
@@ -34,7 +34,8 @@ class SidebarComponent:
             choices = []
             for i in range(4):
                 d = pd.Timestamp.today() - pd.DateOffset(months=i+1)
-                choices.append(f"{calendar.month_name[d.month]} {d.year}")
+                if d.year >= 2026:
+                    choices.append(f"{calendar.month_name[d.month]} {d.year}")
 
             custom_date = st.radio("Velg forhåndsdefinert daterange", 
                                     options = choices , 
@@ -47,6 +48,7 @@ class SidebarComponent:
                 first_day = datetime(year=year, month=month, day=1).date()
                 last_day = datetime(year=year, month=month, day=calendar.monthrange(year, month)[1]).date()
                 st.session_state.dates = (first_day, last_day)
+            
             custom_season = st.radio("Eller velg sesong", 
                                     options = ["25/26","24/25","23/24","22/23"] , 
                                     index = None, 
@@ -69,7 +71,7 @@ class SidebarComponent:
         
         dates = st.date_input("Select Date Range",
                                     value=st.session_state.dates if isinstance(st.session_state.dates, tuple) and all(st.session_state.dates) else (self.start_date,self.end_date),
-                                    min_value="2021-01-01",
+                                    min_value="2022-01-01",
                                     max_value=datetime.today().date()+timedelta(days=30),
                                     disabled=disable_datepicker
                                     )

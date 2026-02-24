@@ -5,11 +5,11 @@ from components import SeasonalReviewComponent,YearlyReviewComponent
 init()
 
 
-tabs = st.tabs({"Seasonal Review": "seasonal", "Yearly Review": "yearly"})
-with tabs["seasonal"]:
+tabs = st.tabs(["seasonal", "yearly"])
+with tabs[0]:
     st.title("Sesonggjennomgang")
-    SeasonalReviewComponent().render_page()
+    #SeasonalReviewComponent().render_page()
 
-with tabs["yearly"]:
+with tabs[1]:
     st.title("Årsgjennomgang")
-    YearlyReviewComponent().render_page()
+    #YearlyReviewComponent().render_page()

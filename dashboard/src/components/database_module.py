@@ -155,11 +155,9 @@ class DatabaseModule(ABC):
         cols[2].metric(label = "Antall unike brukere", value = f"{df['worker_name'].nunique():,.0f}",
                     delta = f"{df['worker_name'].nunique() - delta_df['worker_name'].nunique():,.0f} fra forrige periode")
 
-    @staticmethod
-    def mk_gruppe(work_type : str):
+    def mk_gruppe(self, work_type : str):
         return work_type.split("_")[0] if "_" in work_type else work_type
-    @staticmethod
-    def mk_prosjekt(work_type : str):
+    def mk_prosjekt(self, work_type : str):
         return " ".join(work_type.split("_")[1:]) if "_" in work_type and len(work_type.split("_")) > 1 else work_type
     
     

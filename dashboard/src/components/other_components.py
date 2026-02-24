@@ -62,7 +62,9 @@ class DownloadComponent:
 
         
 class PlotlyComponent:
-    def __init__(self,):
-        pass 
-
-    
+    def render(self, fig, title: str = "", description: str = ""):
+        if title:
+            st.markdown(f"## {title}")
+        if description:
+            st.markdown(description)
+        st.plotly_chart(fig, use_container_width=True)

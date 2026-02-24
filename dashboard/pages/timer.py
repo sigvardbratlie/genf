@@ -57,9 +57,11 @@ with hours:
     #      DOWNLOAD DATA
     # ========================
 
-    with st.expander("Last ned data"):
-        download_component = DownloadComponent()
-        download_component.render_csv_xlsx_download_section(dfg, f'timer_og_lonn_{st.session_state.dates[0]}_til_{st.session_state.dates[1]}')
+    cols = st.columns(2)
+    with cols[0]:
+        DownloadComponent().render_csv_download(dfg, filename=f"timer_og_lønn_{st.session_state.dates[0]}_til_{st.session_state.dates[1]}.csv",)
+    with cols[1]:
+        DownloadComponent().render_xlsx_download(dfg, filename=f"timer_og_lønn_{st.session_state.dates[0]}_til_{st.session_state.dates[1]}.xlsx", )
         
 st.divider()
 season = st.container()
