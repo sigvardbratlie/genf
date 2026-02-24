@@ -1,10 +1,10 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from utilities import init
-from dashboard.components import SidebarComponent
+from dashboard import init
+from components import SidebarComponent
 
-#st.json(st.secrets)
+
 
 init()
 st.title("GENF Dashboard")
@@ -35,28 +35,13 @@ col1, col2 = st.columns([1, 4])
 with col1:
     st.markdown("## 🏕️")
 with col2:
-    st.page_link("pages/seasonal_review.py", label="Seasonal Review", icon="🏕️")
-    st.page_link("pages/yearly_review.py", label = "Yearly Review", icon="📊")
+    st.page_link("pages/review.py", label = "Review", icon="📊")
     st.markdown("""
     Oversikt over camp-status og måloppnåelse:
     - Opptjent vs mål per rolle
     - Fordeling av camp-kostnader per gruppe
     - Visualisering av kostnadsfordeling
     """)
-
-st.divider()
-st.markdown("### Medlemmer")
-col1, col2 = st.columns([1, 4])
-with col1:
-    st.markdown("## 👥")
-with col2:
-    st.page_link("pages/members.py", label = "Medlemmer", icon="👥")
-    st.markdown("""
-    Oversikt over medlemmer:
-    - Liste over alle medlemmer (foreløpig kun U18)
-    - Filtrer på navn og forelder
-    """)
-
 
 st.divider()
 st.markdown("### Buk Cash")

@@ -1,4 +1,4 @@
-from utilities import run_query,init, sidebar_setup, load_all_seasons,map_roles,load_members
+from dashboard.utilities import run_query,init, sidebar_setup, load_all_seasons,map_roles,load_members
 import pandas as pd
 import streamlit as st
 import plotly.express as px

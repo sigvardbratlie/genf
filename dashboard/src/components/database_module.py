@@ -220,19 +220,95 @@ class BigQueryModule(DatabaseModule):
             HAVING SUM(cost)>{threshold};'''
         return self.run_query(query)
     
-    def load_members(self, season):
-        df = self.run_query("""SELECT * FROM members.members""")
-        df["role"] = df["birthdate"].apply(lambda x: self.apply_role(x, season=season))
-        if not df.empty:
-            return df
-        #return df.loc[df["role"].isin(["genf","hjelpementor",]), :].copy()
+    def load_rates(self):
+        query = """SELECT * FROM admin.rates"""
+        data = self.run_query(query)
+        return data
+
+    def write_df(
+        self,
+        df: pd.DataFrame,
+        target_table: str = "raw.buk_cash",
+        write_type: Literal["append", "replace", "merge"] = "append",
+        project_id: str = "genf-446213",
+        merge_keys: Tuple[str, ...] = ("worker_id", "date_completed", "work_type"),
+    ) -> int:
+        """
+        Skriver df til BigQuery. Returnerer antall rader skrevet.
+
+        append  – inserter bare rader nyere enn MAX(date_completed) i måltabellen.
+        replace – WRITE_TRUNCATE: sletter og skriver alt på nytt.
+        merge   – upsert via temp-tabell + MERGE SQL på merge_keys.
+        """
+        full_table_id = f"{project_id}.{target_table}"
+
+        df_clean = df.copy()
+        for col in df_clean.select_dtypes(include=["datetimetz"]).columns:
+            df_clean[col] = df_clean[col].dt.tz_localize(None)
+
+        if write_type == "replace":
+            job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
+            self.client.load_table_from_dataframe(
+                df_clean, full_table_id, job_config=job_config
+            ).result()
+            return len(df_clean)
+
+        if write_type == "append":
+            try:
+                max_date_df = self.client.query(
+                    f"SELECT MAX(date_completed) AS max_date FROM `{full_table_id}`"
+                ).result().to_dataframe()
+                max_date = max_date_df["max_date"].iloc[0]
+                if pd.notna(max_date):
+                    df_clean["date_completed"] = pd.to_datetime(df_clean["date_completed"])
+                    df_clean = df_clean[df_clean["date_completed"] > pd.to_datetime(max_date)]
+            except Exception:
+                pass  # Tabellen finnes ikke ennå — last opp alt
+
+            if df_clean.empty:
+                return 0
+
+            job_config = bigquery.LoadJobConfig(write_disposition="WRITE_APPEND")
+            self.client.load_table_from_dataframe(
+                df_clean, full_table_id, job_config=job_config
+            ).result()
+            return len(df_clean)
+
+        if write_type == "merge":
+            temp_table_id = (
+                f"{full_table_id}_temp_{pd.Timestamp.now().strftime('%Y%m%d%H%M%S')}"
+            )
+            job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
+            self.client.load_table_from_dataframe(
+                df_clean, temp_table_id, job_config=job_config
+            ).result()
+
+            update_cols = ", ".join(
+                f"T.{c} = S.{c}" for c in df_clean.columns if c not in merge_keys
+            )
+            insert_cols = ", ".join(df_clean.columns)
+            insert_vals = ", ".join(f"S.{c}" for c in df_clean.columns)
+            on_clause = " AND ".join(f"T.{k} = S.{k}" for k in merge_keys)
+
+            self.client.query(f"""
+                MERGE `{full_table_id}` T
+                USING `{temp_table_id}` S
+                ON {on_clause}
+                WHEN MATCHED THEN UPDATE SET {update_cols}
+                WHEN NOT MATCHED THEN INSERT ({insert_cols}) VALUES ({insert_vals})
+            """).result()
+            self.client.delete_table(temp_table_id, not_found_ok=True)
+            return len(df_clean)
+
+        raise ValueError(f"Ukjent write_type: {write_type!r}")
+
 
 class SupaBaseApi(DatabaseModule):
     def __init__(self):
         super().__init__()
-        self.supabase_url = st.secrets["supabase"].get("buk_cash").get("SUPABASE_URL")
-        self.supabase_key = st.secrets["supabase"].get("buk_cash").get("SUPABASE_ANON_KEY")
-        self.supabase_api_key = st.secrets["supabase"].get("buk_cash").get("API_KEY")
+        self.supabase_url = st.secrets["supabase"].get("SUPABASE_URL")
+        self.supabase_key = st.secrets["supabase"].get("SUPABASE_ANON_KEY")
+        self.supabase_api_key = st.secrets["supabase"].get("API_KEY")
         self.supabase = create_client(self.supabase_url, self.supabase_key)
 
     @st.cache_data(ttl=3600,show_spinner=False)
@@ -430,24 +506,26 @@ class SupaBaseApi(DatabaseModule):
         df_bc["season"] = "25/26"
         bc_m["role"] = bc_m["date_of_birth"].apply(lambda x: self.apply_role(x, season=st.session_state.get("season", None)))
         df = pd.merge(df_bc, bc_m.loc[:,['id','email',"bank_account_number","role"]], left_on='worker_id', right_on='id', how='left')
+        df["worker_name"] = df["worker_first_name"] + " " + df["worker_last_name"]
+        df["cost"] = df.apply(lambda row : self.apply_cost(row, st.session_state.get("rates", []),), axis = 1)
         to_keep = ["worker_id",
-                "hours_worked",
-                "worker_first_name",
-                "worker_last_name",
-                "date_completed",
-                "work_type",
-                "email",
-                "bank_account_number",
-                "role","season",
-                "units_completed",
-                "comments",
+                   "worker_name", 
+                   "role",
+                   "email",
+                    "bank_account_number",
+                    "season",
+                    "comments",
+                   "date_completed",
+                   "work_type",
+                    "hours_worked",
+                    "units_completed",
+                     "cost",
                 ]
         df = df.loc[:,to_keep].copy()
         df["date_completed"] = pd.to_datetime(df["date_completed"], errors='coerce', utc=True)
         df["units_completed"] = df["units_completed"].fillna(0)
         return df
-
-
+    
 
 # class SupabaseModule(DatabaseModule):
 #     def __init__(self):

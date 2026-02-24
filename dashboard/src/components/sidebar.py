@@ -97,11 +97,8 @@ class SidebarComponent:
         with st.sidebar:
             st.page_link(page="main.py", label="🏠 Home")
             st.page_link("pages/timer.py", label = "Timer", icon="⏰")
-            st.page_link("pages/seasonal_review.py", label = "Seasonal Review", icon="🏕️")
-            st.page_link("pages/yearly_review.py", label = "Yearly Review", icon="📊")
-            st.page_link("pages/members.py", label = "Medlemmer", icon="👥")
+            st.page_link("pages/review.py", label = "Review", icon="📊")
             st.page_link("pages/buk_cash.py", label="Buk.cash", icon="💰")
-            st.page_link("pages/work_types.py", label="Jobb typer", icon="🛠️")
 
             #season_picker(disable_seasonpicker=disable_seasonpicker)
             self.custom_dates_picker(disable_datepicker=disable_custom_datepicker)

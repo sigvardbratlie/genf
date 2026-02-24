@@ -1,5 +1,5 @@
 import streamlit as st
-from utilities import init
+from dashboard.utilities import init
 from dashboard.components.reviews import SeasonalReviewComponent,YearlyReviewComponent
 
 init()
