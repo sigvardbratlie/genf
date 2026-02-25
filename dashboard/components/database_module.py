@@ -128,10 +128,8 @@ class DatabaseModule(ABC):
         if not every_sample:
             dfg = df.groupby(GROUPING_COLS)[AGG_COLS].sum().reset_index()
         else:
-            for col in ALL_COLS:
-                if col not in df.columns:
-                    ALL_COLS.pop(ALL_COLS.index(col))
-            dfg = df[ALL_COLS].copy()
+            cols = [col for col in ALL_COLS if col in df.columns]
+            dfg = df[cols].copy()
         
         return dfg
 
