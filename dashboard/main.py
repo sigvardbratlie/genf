@@ -45,17 +45,17 @@ with col2:
 
 st.divider()
 
-# Camp Status side
+# Review side
 col1, col2 = st.columns([1, 4])
 with col1:
-    st.markdown("## 🏕️")
+    st.markdown("## 📊")
 with col2:
     st.page_link("pages/review.py", label = "Review", icon="📊")
     st.markdown("""
-    Oversikt over camp-status og måloppnåelse:
-    - Opptjent vs mål per rolle
-    - Fordeling av camp-kostnader per gruppe
-    - Visualisering av kostnadsfordeling
+    Sesong- og årsgjennomgang av lønn og aktivitet:
+    - **Sesong**: Opptjent vs mål, avviksfordeling og aktive vs registrerte per rolle
+    - **År**: Årlige kostnader, gjennomsnitt per år per rolle, og kumulativ lønnsutvikling
+    - Filter for inaktive medlemmer i begge faner
     """)
 
 st.divider()

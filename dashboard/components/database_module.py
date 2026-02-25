@@ -9,6 +9,8 @@ from datetime import date, datetime,timedelta
 from typing import Optional,Any, List, Dict,Tuple,Literal, Union
 import logging
 from abc import ABC, abstractmethod
+from .models import JobLog, User, WorkRequest, HistoricalJobEntry
+import numpy as np
 
 
 logging.basicConfig(level=logging.INFO)
@@ -209,7 +211,14 @@ class BigQueryModule(DatabaseModule):
     
     def load_registrations(self):
         query = """SELECT * FROM registrations.season_22_25"""
-        return self.run_query(query)
+        data = self.run_query(query)
+        data.replace({"<NA>": None, pd.NaT: None,np.nan : None}, inplace=True)
+        data["hours_worked"] = pd.to_numeric(data["hours_worked"], errors="coerce")
+        data["cost"] = pd.to_numeric(data["cost"], errors="coerce")
+        data["work_type"] = data["work_type"].fillna("unknown")
+        [HistoricalJobEntry.model_validate(record) for record in data.to_dict(orient="records")] if not data.empty else None
+        return data
+        
     
     def load_active_users(self, threshold = 1000):
         query =  f'''SELECT s.person_id,r.email 
@@ -370,6 +379,7 @@ class SupaBaseApi(DatabaseModule):
             # Call the RPC function
             response = _self.supabase.rpc("get_job_logs_with_api_key", params).execute()
             data = response.data
+            [JobLog.model_validate(record) for record in data] if data else None 
             
             if data is None:
                 return pd.DataFrame()
@@ -414,6 +424,7 @@ class SupaBaseApi(DatabaseModule):
             response = _self.supabase.rpc("get_profiles_with_api_key", {
                 "p_api_key": _self.supabase_api_key
             }).execute()
+            [User.model_validate(record) for record in response.data] if response.data else None
             df = pd.DataFrame(response.data) if response.data else pd.DataFrame()
             return df
         except Exception as e:
@@ -459,7 +470,7 @@ class SupaBaseApi(DatabaseModule):
                 params["p_to_date"] = to_date.isoformat()
             
             response = _self.supabase.rpc("get_work_requests_with_api_key", params).execute()
-            
+            [WorkRequest.model_validate(record) for record in response.data] if response.data else None
             return response.data if response.data else []
         except Exception as e:
             print(f"Error fetching work requests: {e}")
@@ -534,135 +545,8 @@ class SupaBaseApi(DatabaseModule):
         df["units_completed"] = df["units_completed"].fillna(0)
         return df
     
-
-# class SupabaseModule(DatabaseModule):
-#     def __init__(self):
-#         super().__init__()
-#         self.supabase_url = st.secrets["supabase"].get("genf").get("SUPABASE_URL")
-#         self.supabase_api_key = st.secrets["supabase"].get("genf").get("SUPABASE_ANON_KEY")
-#         self.supabase = create_client(self.supabase_url, self.supabase_api_key)
-
-#     @st.cache_data(ttl=3600,show_spinner=False)
-#     def run_query(_self, table_name: str, cols : list = [], return_dataframe : bool = True) -> pd.DataFrame | dict:
-#         select_cols = ", ".join(cols) if cols else "*"
-#         response = _self.supabase.table(table_name).select(select_cols).execute()
-#         data = response.data
-#         if return_dataframe:
-#             if data is None:
-#                     return pd.DataFrame()
-#             return pd.DataFrame(data)
-#         else:
-#             if data is None:
-#                 return {}
-#             return data
-    
-#     def _calc_camp_season(self, season: str, role: str) -> float:
-#         """Calculate camp cost for a season (e.g. '2024/2025')"""
-#         if role in ["genf", "hjelpementor"]:
-#             age_group = "u"
-#         else:
-#             age_group = "o"
-
-#         data = self.run_query("camp_rates")
-#         if data is None or data.empty:
-#             raise ValueError("Camp rates data is empty or not available")
-
-#         try:
-#             year1, year2 = map(int, season.split("/"))
-#         except (ValueError, IndexError) as e:
-#             raise ValueError(f"Invalid season format: {season!r}. Expected e.g. '2024/2025'") from e
-
-#         # Get values - with proper error handling
-#         try:
-#             nc = data.loc[data["year"] == year1, age_group + "18_s"].item()
-#             sc_pc = data.loc[data["year"] == year2, age_group + "18_l"].item() * 2
-#         except (KeyError, ValueError, IndexError) as e:
-#             raise ValueError(
-#                 f"Missing camp rate data for season {season} "
-#                 f"(years {year1}/{year2}, group {age_group})"
-#             ) from e
-
-#         return nc + sc_pc
-
-#     def _calc_camp_year(self, year: int, role: str) -> float:
-#         """Calculate camp cost for a single year"""
-#         if role in ["genf", "hjelpementor"]:
-#             age_group = "u"
-#         else:
-#             age_group = "o"
-
-#         data = self.run_query("camp_rates")
-#         if data is None or data.empty:
-#             raise ValueError("Camp rates data is empty or not available")
-
-#         try:
-#             nc = data.loc[data["year"] == year, age_group + "18_s"].item()
-#             sc_pc = data.loc[data["year"] == year, age_group + "18_l"].item() * 2
-#         except (KeyError, ValueError, IndexError) as e:
-#             raise ValueError(
-#                 f"Missing camp rate data for year {year} (group {age_group})"
-#             ) from e
-
-#         return nc + sc_pc
-
-#     def calc_camp_cost(
-#         self,
-#         period: str,
-#         role: Literal["genf", "hjelpementor", "mentor"],
-#         type_: Literal["year", "season"] = "season"
-#     ) -> float:
-#         """
-#         Main entry point to calculate camp cost.
-        
-#         Args:
-#             period: "2024/2025" (season) or "2025" (year)
-#             role: participant role
-#             type_: "season" or "year"
-#         """
-#         if type_ == "season":
-#             return self._calc_camp_season(period, role)
-#         elif type_ == "year":
-#             try:
-#                 year = int(period)
-#             except ValueError:
-#                 raise ValueError(f"Invalid year format for type_='year': {period!r}")
-#             return self._calc_camp_year(year, role)
-#         else:
-#             raise ValueError(f"Invalid type_: {type_!r} (must be 'year' or 'season')")
-
-# class CombinedModule(DatabaseModule):
-#     def __init__(self):
-#         super().__init__()
-#         self.supabase_api = get_supabase_api()
-#         self.supabase_module = get_supabase_module()
-
-#     def load_all_registrations(self):
-#         df_new = self.supabase_api.build_combined()
-#         df_old = self.supabase_module.run_query("registrations")
-#         df = pd.concat([df_old, df_new], ignore_index=True)
-#         rates = self.supabase_module.run_query("rates", return_dataframe=False)
-#         df["cost"] =  df.apply(lambda row : self.supabase_api.apply_cost(row, rates,), axis = 1)
-#         df["units_completed"] = df["units_completed"].fillna(0)
-#         df["date_completed"] = pd.to_datetime(df["date_completed"], errors='coerce', utc=True)
-#         return df
-
-#@st.cache_resource(ttl=3600, show_spinner=False)
 def get_supabase_api():
     return SupaBaseApi()
 
-#@st.cache_resource(ttl=3600, show_spinner=False)
 def get_bigquery_module():
     return BigQueryModule()
-
-# #@st.cache_resource(ttl=3600, show_spinner=False)
-# def get_supabase_module():
-#     return SupabaseModule()
-
-
-
-
-# #@st.cache_resource(ttl=3600, show_spinner=False)
-# def get_combined_module():
-#     return CombinedModule()
-
-
