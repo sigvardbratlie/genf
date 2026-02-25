@@ -17,9 +17,10 @@ class SeasonalBase:
 
     def _load_registrations(self) -> pd.DataFrame:
         df = self.bq.load_registrations()
-        df = self.bq.mk_gruppe(df)
-        df = self.bq.mk_prosjekt(df)
-    
+        df["gruppe"] = df["work_type"].apply(self.bq.mk_gruppe)
+        df["prosjekt"] = df["work_type"].apply(self.bq.mk_prosjekt)
+        return df
+
     def _get_camp_price_season(self, sesong: str, u18: bool = True) -> float:
         prefix = "u" if u18 else "o"
         try:
@@ -278,8 +279,8 @@ class YearlyReviewComponent(SeasonalBase):
         st.info("**NB**: Husk å huk av for roller i sidebar. Viser alle roller 'by default'", icon="⚙️")
 
     def render_cumulative_costs(self, df: pd.DataFrame):
-        st.markdown("## Kumulativ kostnad over måneder")
-        st.markdown("Viser hvordan kostnadene har akkumulert måned for måned for hvert år.")
+        st.markdown("## Kumulativ lønn")
+        st.markdown("Viser medlemmene har jobbet måned for måned per år")
         df = df.copy()
         df["month"] = df["date_completed"].dt.month
         df["year"] = df["date_completed"].dt.year

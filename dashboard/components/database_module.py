@@ -115,7 +115,7 @@ class DatabaseModule(ABC):
     def apply_grouping(self,df : pd.DataFrame, every_sample : bool = False) -> pd.DataFrame:
         GROUPING_COLS = ["worker_name","email","bank_account_number","role"]
         AGG_COLS =  ["cost","hours_worked","units_completed"]
-        ALL_COLS = ["worker_name","email","bank_account_number","role","prosjekt","gruppe","comments","cost","hours_worked","units_completed","date_completed",]
+        ALL_COLS = ["worker_name","email","bank_account_number","role","prosjekt","gruppe","work_type","comments","cost","hours_worked","units_completed","date_completed",]
         MIN_COLS = ["worker_name","role","cost","hours_worked",]
         
         if not set(GROUPING_COLS + AGG_COLS).issubset(df.columns) and not every_sample:
@@ -154,8 +154,12 @@ class DatabaseModule(ABC):
                     delta = f"{df['worker_name'].nunique() - delta_df['worker_name'].nunique():,.0f} fra forrige periode")
 
     def mk_gruppe(self, work_type : str):
+        if not work_type:
+            return None
         return work_type.split("_")[0] if "_" in work_type else work_type
     def mk_prosjekt(self, work_type : str):
+        if not work_type:
+            return None
         return " ".join(work_type.split("_")[1:]) if "_" in work_type and len(work_type.split("_")) > 1 else work_type
     
     
@@ -184,7 +188,6 @@ class DatabaseModule(ABC):
                 return row["hours_worked"] * rate.get(row["role"])
             except TypeError as e:
                 logger.warning(f"Error calculating cost for row \n{row.to_dict()} \nand rate \n{rate}\n: {e}\n\n")
-
 
 class BigQueryModule(DatabaseModule):
     def __init__(self, ):
@@ -307,7 +310,6 @@ class BigQueryModule(DatabaseModule):
             return len(df_clean)
 
         raise ValueError(f"Ukjent write_type: {write_type!r}")
-
 
 class SupaBaseApi(DatabaseModule):
     def __init__(self):
