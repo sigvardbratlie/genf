@@ -1,15 +1,27 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from dashboard import init
-from components import SidebarComponent,DownloadComponent,get_supabase_api
-from datetime import datetime,timedelta
 import plotly.express as px
 import plotly.graph_objects as go
 from io import BytesIO
 import calendar
 import logging
+import os
+from pathlib import Path
 logger = logging.getLogger(__name__)
+def set_cwd():
+    if Path(".").resolve().name != "dashboard":
+        logger.warning(f'Unexpected working directory: {Path(".").resolve()}. Expected to be in "dashboard" directory.')
+        try:
+            os.chdir("./dashboard")
+        except Exception as e:
+            logger.error(f"Failed to change directory to 'dashboard': {e}")
+            st.error("Feil ved oppstart: Kunne ikke sette arbeidskatalog til 'dashboard'. Vennligst start applikasjonen fra riktig katalog.")
+            st.stop()
+
+set_cwd()
+from dashboard import init
+from components import SidebarComponent,DownloadComponent,get_supabase_api
 
 init()
 
