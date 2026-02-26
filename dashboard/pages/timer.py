@@ -31,18 +31,24 @@ SidebarComponent().sidebar_setup(disable_seasonpicker=True)
 
 api = get_supabase_api()
 df_raw = api.build_combined()
+df_raw['gruppe'] = df_raw['work_type'].apply(lambda wt: api.mk_gruppe(wt))
+df_raw["prosjekt"] = df_raw["work_type"].apply(lambda wt: api.mk_prosjekt(wt))
+df = api.filter_df_by_dates(df_raw.copy())
 
 sel_cols = st.columns(2)
 
-name = sel_cols[0].multiselect("Velg navn (tom for alle)", options=df_raw["worker_name"].unique().tolist(), default=[])
+name = sel_cols[0].multiselect("Velg navn (tom for alle)", options=df["worker_name"].unique().tolist(), default=[])
 every_sample = sel_cols[1].toggle("Skru av sammenslåing", value=False)
 
 sel_cols2 = st.columns(2)
-work_types = sel_cols2[0].multiselect("Velg arbeidstype (tom for alle)", options=df_raw["work_type"].unique().tolist(), default=[])
+gruppe = sel_cols2[0].multiselect("Velg gruppe (tom for alle)", options=df["gruppe"].unique().tolist(), default=[])
+prosjekt = sel_cols2[1].multiselect("Velg arbeidstype (tom for alle)", options=df["prosjekt"].unique().tolist(), default=[])
+if not gruppe:
+    gruppe = df["gruppe"].unique().tolist()
+if not prosjekt:
+    prosjekt = df["prosjekt"].unique().tolist()
 
-
-df = api.filter_df_by_dates(df_raw.copy())
-df = api.filter_work_type(df, work_types)
+df = df.loc[(df["gruppe"].isin(gruppe)) & (df["prosjekt"].isin(prosjekt)) ,:]
 if name:
     df = df[df["worker_name"].isin(name)]
 

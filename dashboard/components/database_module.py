@@ -156,6 +156,15 @@ class DatabaseModule(ABC):
                     delta = f"{df['worker_name'].nunique() - delta_df['worker_name'].nunique():,.0f} fra forrige periode")
 
     def mk_gruppe(self, work_type : str):
+        '''
+        Args:
+            work_type: str, expected format "gruppe_prosjekt" e.g. "genf_rydding", "hjelpementor_kiosk", "mentor_glenne_vedpakking"
+        Returns:
+            str: gruppe, e.g. "genf", "hjelpementor", "mentor"
+
+        Usage:
+            df['gruppe'] = df['work_type'].apply(lambda wt: self.mk_gruppe(wt))
+        '''
         if not work_type:
             return None
         return work_type.split("_")[0] if "_" in work_type else work_type
