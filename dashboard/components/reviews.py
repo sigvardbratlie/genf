@@ -82,6 +82,67 @@ class SeasonBase:
         fig = px.histogram(data, x=type, nbins=50, color=color_by, barmode="overlay", opacity=0.6)
         st.plotly_chart(fig, use_container_width=True, key=f"{self.__class__.__name__}_dist_{type}")
 
+    def _build_stacked_cost_fig(self, df: pd.DataFrame, x_col: str, group_col: str) -> go.Figure:
+        df_agg = df.groupby([x_col, group_col]).agg({"cost": "sum"}).reset_index()
+        x_order = [str(x) for x in sorted(df_agg[x_col].dropna().unique(), key=str)]
+        fig = go.Figure()
+        for group in sorted(df_agg[group_col].dropna().unique()):
+            d = df_agg[df_agg[group_col] == group]
+            fig.add_trace(go.Bar(x=d[x_col].astype(str), y=d["cost"], name=group, offsetgroup="earned"))
+        fig.update_layout(
+            barmode="stack", yaxis_title="NOK",
+            xaxis={"categoryorder": "array", "categoryarray": x_order},
+        )
+        return fig
+
+    def _render_cost_vs_goal(self, summary_df: pd.DataFrame, x_col: str, key: str):
+        fig = go.Figure()
+        fig.add_trace(go.Bar(x=summary_df[x_col].astype(str), y=summary_df["goal"], name="Mål", marker_color="indianred"))
+        fig.add_trace(go.Bar(x=summary_df[x_col].astype(str), y=summary_df["cost"], name="Opptjent", marker_color="lightsalmon"))
+        st.plotly_chart(fig, use_container_width=True, key=key)
+
+    def render_avg_per_period_per_role(self, data: pd.DataFrame, period_col: str):
+        period_label = "År" if period_col == "year" else "Sesong"
+        st.markdown(f"## Gjennomsnitt per {period_label} per Rolle")
+        st.markdown(f"Gjennomsnittlig opptjent beløp og arbeidede timer per person, fordelt på {period_label.lower()} og rolle.")
+
+        metric = st.selectbox(
+            "Vis gjennomsnitt av:",
+            options=["cost", "hours_worked"],
+            format_func=lambda x: "Opptjent beløp (NOK)" if x == "cost" else "Arbeidede timer",
+            key=f"{self.__class__.__name__}_avg_metric",
+        )
+
+        avg_data = (
+            data.groupby([period_col, "role"])
+            .agg(avg=(metric, "mean"), count=("worker_name", "count"))
+            .reset_index()
+            .rename(columns={"avg": f"avg_{metric}"})
+            .sort_values(period_col, key=lambda s: s.astype(str))
+        )
+
+        fig = px.bar(
+            avg_data,
+            x=avg_data[period_col].astype(str),
+            y=f"avg_{metric}",
+            color="role",
+            barmode="group",
+            text=avg_data[f"avg_{metric}"].round(0).astype(int),
+            labels={
+                f"avg_{metric}": "Gjennomsnitt opptjent (NOK)" if metric == "cost" else "Gjennomsnitt timer",
+                "x": period_label,
+                "role": "Rolle",
+            },
+        )
+        fig.update_traces(textposition="outside")
+        st.plotly_chart(fig, use_container_width=True, key=f"{self.__class__.__name__}_avg_per_{period_col}_role")
+
+        with st.expander("Vis talldata"):
+            display = avg_data.copy()
+            display[f"avg_{metric}"] = display[f"avg_{metric}"].round(1)
+            display.columns = [period_label, "Rolle", f"Snitt {'NOK' if metric == 'cost' else 'timer'}", "Antall"]
+            st.dataframe(display, use_container_width=True, hide_index=True)
+
 
 class SeasonalReviewComponent(SeasonBase):
     def __init__(self):
@@ -106,18 +167,21 @@ class SeasonalReviewComponent(SeasonBase):
         st.markdown("## Opptjent vs Mål per Sesong")
         st.markdown("Sammenligning av opptjent beløp mot målbeløp per sesong")
         bar_season = bar_data.groupby("season").agg({"cost": "sum", "goal": "sum"}).reset_index()
-        fig = go.Figure()
-        fig.add_trace(go.Bar(
-            x=bar_season["season"], y=bar_season["goal"],
-            name="Mål", marker_color="indianred",
-        ))
-        fig.add_trace(go.Bar(
-            x=bar_season["season"], y=bar_season["cost"],
-            name="Opptjent", marker_color="lightsalmon",
-        ))
-        st.plotly_chart(fig, use_container_width=True, key="seasonal_active_members")
+        self._render_cost_vs_goal(bar_season, "season", "seasonal_active_members")
         st.markdown("Viser kun oppnåelse av camp-kostnader for de som har jobbet i løpet av sesongen, ikke faktiske camp-deltakere.")
         st.info("**NB**: Husk å huk av for roller i sidebar. Viser alle roller 'by default'", icon="⚙️")
+
+    def render_gruppe_stack(self, df: pd.DataFrame):
+        st.markdown("## Kostnadsfordeling per Gruppe per Sesong")
+        st.markdown("Totale kostnader per sesong, fordelt på arbeidsgruppe.")
+        fig = self._build_stacked_cost_fig(df, "season", "gruppe")
+        st.plotly_chart(fig, use_container_width=True, key="seasonal_gruppe_stack")
+
+    def render_prosjekt_stack(self, df: pd.DataFrame):
+        st.markdown("## Kostnadsfordeling per Prosjekt per Sesong")
+        st.markdown("Totale kostnader per sesong, fordelt på prosjekt.")
+        fig = self._build_stacked_cost_fig(df, "season", "prosjekt")
+        st.plotly_chart(fig, use_container_width=True, key="seasonal_prosjekt_stack")
 
     def render_goal(self, bar_data: pd.DataFrame):
         if "goal" not in bar_data.columns:
@@ -157,8 +221,9 @@ class SeasonalReviewComponent(SeasonBase):
         registered_long["role"] = registered_long["role"].str.replace("n_", "", regex=False)
         result = registered_long.merge(active, on=["role", "season"], how="left").sort_values("season")
 
-        active_pivot = active.pivot(index="season", columns="role", values="active_members").fillna(0).reset_index()
-        registered_pivot = result.pivot(index="season", columns="role", values="registered_members").fillna(0).reset_index()
+        season_order = sorted(result["season"].dropna().unique(), key=str)
+        active_pivot = active.pivot(index="season", columns="role", values="active_members").fillna(0).reindex(season_order).reset_index()
+        registered_pivot = result.pivot(index="season", columns="role", values="registered_members").fillna(0).reindex(season_order).reset_index()
 
         colors = {"genf": "#5DADE2", "hjelpementor": "#58D68D", "mentor": "#F8B739"}
         fig = go.Figure()
@@ -183,9 +248,9 @@ class SeasonalReviewComponent(SeasonBase):
             st.error("Rater ikke tilgjengelige (st.session_state.rates mangler).")
             return
 
-        data = self._filter_by_role(self.df)
+        df = self._filter_by_role(self.df)
         data = (
-            data.groupby(["worker_name", "season", "role"])
+            df.groupby(["worker_name", "season", "role"])
             .agg({"cost": "sum", "hours_worked": "sum"})
             .reset_index()
         )
@@ -193,13 +258,22 @@ class SeasonalReviewComponent(SeasonBase):
         self._filter_inactive()
         bar_data = self._prepare_bar_data(data)
 
+        active_workers = bar_data[["worker_name", "season"]].drop_duplicates()
+        df_active = df.merge(active_workers, on=["worker_name", "season"], how="inner")
+
+        self.render_avg_per_period_per_role(bar_data, "season")
+        st.divider()
         self.render_active_members(bar_data)
         st.divider()
-        self.render_goal(bar_data)
+        self.render_gruppe_stack(df_active)
+        st.divider()
+        self.render_prosjekt_stack(df_active)
         st.divider()
         self.render_individual_distributions(bar_data, "cost")
         st.divider()
         self.render_individual_distributions(bar_data, "hours_worked")
+        st.divider()
+        self.render_goal(bar_data)
         st.divider()
         self.render_active_per_role(bar_data)
 
@@ -248,27 +322,15 @@ class YearlyReviewComponent(SeasonBase):
         return pd.DataFrame.from_dict(rows, orient="index")
 
     def render_yearly_costs(self, df: pd.DataFrame):
-        st.markdown("## Årlig kostnadsgjennomgang")
+        st.markdown("## Kostnadsfordeling per Gruppe per År")
         st.markdown(
-            "Viser totale kostnader per år, fordelt på gruppe, sammenlignet med Camp kostnader. "
-            "Camp kostnader kan skjules/vises for å bedre se fordelingen blant ulike grupper."
+            "Totale kostnader per år, fordelt på arbeidsgruppe, sammenlignet med beregnede camp-kostnader. "
+            "Camp-kostnader kan skjules for å se fordelingen blant grupper mer tydelig."
         )
         hide_camp = st.toggle("Skjul Camp kostnader", key="yearly_hide_camp")
 
-        df_year = (
-            df.groupby([df["date_completed"].dt.year, "gruppe"])
-            .agg({"hours_worked": "sum", "cost": "sum"})
-            .reset_index()
-        )
-        df_year = df_year.loc[df_year["date_completed"] >= 2023]
-
-        fig = go.Figure()
-        for gruppe in df_year["gruppe"].unique():
-            d = df_year[df_year["gruppe"] == gruppe]
-            fig.add_trace(go.Bar(
-                x=d["date_completed"].astype(str), y=d["cost"],
-                name=gruppe, offsetgroup="1",
-            ))
+        df_year = df[df["year"] >= 2023]
+        fig = self._build_stacked_cost_fig(df_year, "year", "gruppe")
 
         if not hide_camp:
             df_costs = self._build_camp_costs_df()
@@ -276,54 +338,29 @@ class YearlyReviewComponent(SeasonBase):
             fig.add_trace(go.Bar(
                 x=df_costs.index.astype(str),
                 y=df_costs[roles].sum(axis=1),
-                name="Camp Costs", opacity=0.7, offsetgroup="2",
+                name="Camp Costs", opacity=0.7, offsetgroup="camp",
             ))
 
-        fig.update_layout(barmode="stack")
         st.plotly_chart(fig, use_container_width=True, key="yearly_costs")
         st.markdown("NB: Viser kostnader som om alle registrerte medlemmer deltok på camp, uavhengig av faktisk deltakelse.")
         st.info("**NB**: Husk å huk av for roller i sidebar. Viser alle roller 'by default'", icon="⚙️")
 
-    def render_avg_per_year_per_role(self, data: pd.DataFrame):
-        st.markdown("## Gjennomsnitt per År per Rolle")
-        st.markdown("Viser gjennomsnittlig opptjent beløp og arbeidede timer per person, fordelt på år og rolle.")
+    def render_prosjekt_stack(self, df: pd.DataFrame):
+        st.markdown("## Kostnadsfordeling per Prosjekt per År")
+        st.markdown("Totale kostnader per år, fordelt på prosjekt.")
+        fig = self._build_stacked_cost_fig(df[df["year"] >= 2023], "year", "prosjekt")
+        st.plotly_chart(fig, use_container_width=True, key="yearly_prosjekt_stack")
 
-        metric = st.selectbox(
-            "Vis gjennomsnitt av:",
-            options=["cost", "hours_worked"],
-            format_func=lambda x: "Opptjent beløp (NOK)" if x == "cost" else "Arbeidede timer",
-            key="yearly_avg_metric",
-        )
-
-        avg_data = (
-            data.groupby(["year", "role"])
-            .agg(avg=(metric, "mean"), count=("worker_name", "count"))
-            .reset_index()
-            .rename(columns={"avg": f"avg_{metric}"})
-            .sort_values("year")
-        )
-
-        fig = px.bar(
-            avg_data,
-            x=avg_data["year"].astype(str),
-            y=f"avg_{metric}",
-            color="role",
-            barmode="group",
-            text=avg_data[f"avg_{metric}"].round(0).astype(int),
-            labels={
-                f"avg_{metric}": "Gjennomsnitt opptjent (NOK)" if metric == "cost" else "Gjennomsnitt timer",
-                "x": "År",
-                "role": "Rolle",
-            },
-        )
-        fig.update_traces(textposition="outside")
-        st.plotly_chart(fig, use_container_width=True, key="yearly_avg_per_year_role")
-
-        with st.expander("Vis talldata"):
-            display = avg_data.copy()
-            display[f"avg_{metric}"] = display[f"avg_{metric}"].round(1)
-            display.columns = ["År", "Rolle", f"Snitt {'NOK' if metric == 'cost' else 'timer'}", "Antall"]
-            st.dataframe(display, use_container_width=True, hide_index=True)
+    def render_cost_vs_goal_yearly(self, df: pd.DataFrame):
+        st.markdown("## Opptjent vs Mål per År")
+        earned = df[df["year"] >= 2023].groupby("year").agg({"cost": "sum"}).reset_index()
+        camp = self._build_camp_costs_df()
+        camp.index.name = "year"
+        camp_summary = camp[["total"]].rename(columns={"total": "goal"}).reset_index()
+        summary = earned.merge(camp_summary, on="year", how="left")
+        self._render_cost_vs_goal(summary, "year", "yearly_cost_vs_goal")
+        st.markdown("NB: Camp-kostnader beregnet som om alle registrerte medlemmer deltok på camp.")
+        st.info("**NB**: Husk å huk av for roller i sidebar. Viser alle roller 'by default'", icon="⚙️")
 
     def render_cumulative_costs(self, df: pd.DataFrame):
         st.markdown("## Kumulativ lønn")
@@ -358,9 +395,13 @@ class YearlyReviewComponent(SeasonBase):
         active_workers = data_per_year[["worker_name", "year"]].drop_duplicates()
         df_active = df.merge(active_workers, on=["worker_name", "year"], how="inner")
 
+        self.render_avg_per_period_per_role(data_per_year, "year")
+        st.divider()
+        self.render_cost_vs_goal_yearly(df_active)
+        st.divider()
         self.render_yearly_costs(df_active)
         st.divider()
-        self.render_avg_per_year_per_role(data_per_year)
+        self.render_prosjekt_stack(df_active)
         st.divider()
         self.render_individual_distributions(data_per_year, "cost", color_by="year")
         st.divider()
