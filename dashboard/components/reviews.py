@@ -278,7 +278,7 @@ class SeasonalReviewComponent(SeasonBase):
         self.render_active_per_role(bar_data)
 
 
-class YearlyReviewComponent(SeasonBase):
+class AnnualReviewComponent(SeasonBase):
     def __init__(self):
         super().__init__()
         self.members_count = self.bq.run_query("SELECT * FROM members.yearly_count")

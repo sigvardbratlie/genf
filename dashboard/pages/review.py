@@ -1,13 +1,13 @@
 import streamlit as st
 from dashboard import init
-from components import SeasonalReviewComponent,YearlyReviewComponent,SidebarComponent
+from components import SeasonalReviewComponent,SidebarComponent, AnnualReviewComponent
 import logging
 logger = logging.getLogger(__name__)
 init()
 
 SidebarComponent().sidebar_setup(disable_seasonpicker=True,disable_datepicker=True, disable_custom_datepicker=True)
 
-tabs = st.tabs(["seasonal", "yearly"])
+tabs = st.tabs(["Sesong", "År"])
 with tabs[0]:
     st.title("Sesonggjennomgang")
     try:
@@ -19,7 +19,7 @@ with tabs[0]:
 with tabs[1]:
     st.title("Årsgjennomgang")
     try:
-        YearlyReviewComponent().render_page()
+        AnnualReviewComponent().render_page()
     except Exception as e:
         st.error(f"Det skjedde en feil under innlastning av årsgjennomgangen: {e}")
         logger.error(f"Feil under innlastning av årsgjennomgangen: {e}", exc_info=True)
