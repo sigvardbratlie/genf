@@ -1,8 +1,11 @@
 from io import BytesIO
+import logging
 import streamlit as st
 import pandas as pd
 from typing import Literal, TYPE_CHECKING
 from uuid import uuid4
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from dashboard.src.components.database_module import BigQueryModule
@@ -58,7 +61,7 @@ class DownloadComponent:
                         st.success(f"{n} rader lastet opp til `{target_table}` ({write_type}).")
                 except Exception as e:
                     st.error(f"Feil ved oppdatering av BigQuery: {e}")
-                    raise
+                    logger.error(f"BigQuery update failed for {target_table}: {e}", exc_info=True)
 
         
 class PlotlyComponent:

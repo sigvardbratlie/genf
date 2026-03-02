@@ -247,6 +247,62 @@ class BigQueryModule(DatabaseModule):
         data = self.run_query(query)
         return data
 
+    def _coerce_df_to_schema(self, df: pd.DataFrame, full_table_id: str) -> pd.DataFrame:
+        """
+        Coerce DataFrame column dtypes to match an existing BigQuery table schema.
+        If the table doesn't exist yet, returns the DataFrame unchanged.
+        Unknown/extra columns are left as-is.
+        """
+        try:
+            table = self.client.get_table(full_table_id)
+        except Exception:
+            return df  # Table doesn't exist yet — let BQ autodetect
+
+        df = df.copy()
+        type_map = {field.name: field.field_type for field in table.schema}
+
+        for col in df.columns:
+            bq_type = type_map.get(col)
+            if bq_type is None:
+                continue
+            try:
+                if bq_type in ("INT64", "INTEGER"):
+                    if pd.api.types.is_float_dtype(df[col]):
+                        # pandas uses float64 for nullable int columns — convert back to Int64
+                        df[col] = df[col].astype("Int64")
+                    elif not pd.api.types.is_integer_dtype(df[col]):
+                        parsed = pd.to_datetime(df[col], errors="coerce")
+                        if parsed.notna().any() and df[col].dtype == object:
+                            # Only treat object columns as datetime-like, not floats
+                            df[col] = parsed.apply(
+                                lambda x: int(x.timestamp()) if pd.notna(x) else None
+                            )
+                            logger.info(f"Coerced '{col}' to epoch seconds (INT64) to match BQ schema.")
+                        else:
+                            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
+                elif bq_type in ("FLOAT64", "FLOAT", "NUMERIC", "BIGNUMERIC"):
+                    df[col] = pd.to_numeric(df[col], errors="coerce")
+                elif bq_type in ("TIMESTAMP", "DATETIME"):
+                    df[col] = pd.to_datetime(df[col], errors="coerce")
+                    if hasattr(df[col].dt, "tz") and df[col].dt.tz is not None:
+                        df[col] = df[col].dt.tz_localize(None)
+                elif bq_type == "DATE":
+                    df[col] = pd.to_datetime(df[col], errors="coerce").dt.date
+                elif bq_type in ("BOOL", "BOOLEAN"):
+                    df[col] = df[col].apply(
+                        lambda x: x.strip().lower() in ("true", "1", "yes")
+                        if isinstance(x, str)
+                        else bool(x)
+                        if x is not None
+                        else None
+                    )
+                elif bq_type == "STRING":
+                    df[col] = df[col].where(df[col].isna(), df[col].astype(str))
+            except Exception as e:
+                logger.warning(f"Could not coerce column '{col}' to BigQuery type '{bq_type}': {e}")
+
+        return df
+
     def write_df(
         self,
         df: pd.DataFrame,
@@ -269,6 +325,9 @@ class BigQueryModule(DatabaseModule):
         for col in df_clean.select_dtypes(include=["datetimetz"]).columns:
             df_clean[col] = df_clean[col].dt.tz_localize(None)
 
+        # Coerce dtypes to match the existing BQ table schema (prevents type mismatch errors)
+        df_clean = self._coerce_df_to_schema(df_clean, full_table_id)
+
         if write_type == "replace":
             job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
             self.client.load_table_from_dataframe(
@@ -285,8 +344,8 @@ class BigQueryModule(DatabaseModule):
                 if pd.notna(max_date):
                     df_clean["date_completed"] = pd.to_datetime(df_clean["date_completed"])
                     df_clean = df_clean[df_clean["date_completed"] > pd.to_datetime(max_date)]
-            except Exception:
-                pass  # Tabellen finnes ikke ennå — last opp alt
+            except Exception as e:
+                logger.warning(f"Kunne ikke hente max(date_completed) fra {full_table_id}: {e}. Laster opp alle rader.")
 
             if df_clean.empty:
                 return 0
@@ -317,14 +376,16 @@ class BigQueryModule(DatabaseModule):
             insert_cols = ", ".join(df_clean.columns)
             insert_vals = ", ".join(f"S.{c}" for c in df_clean.columns)
 
-            self.client.query(f"""
-                MERGE `{full_table_id}` T
-                USING `{temp_table_id}` S
-                ON {on_clause}
-                WHEN MATCHED THEN UPDATE SET {update_cols}
-                WHEN NOT MATCHED THEN INSERT ({insert_cols}) VALUES ({insert_vals})
-            """).result()
-            self.client.delete_table(temp_table_id, not_found_ok=True)
+            try:
+                self.client.query(f"""
+                    MERGE `{full_table_id}` T
+                    USING `{temp_table_id}` S
+                    ON {on_clause}
+                    WHEN MATCHED THEN UPDATE SET {update_cols}
+                    WHEN NOT MATCHED THEN INSERT ({insert_cols}) VALUES ({insert_vals})
+                """).result()
+            finally:
+                self.client.delete_table(temp_table_id, not_found_ok=True)
             return len(df_clean)
 
         raise ValueError(f"Ukjent write_type: {write_type!r}")
