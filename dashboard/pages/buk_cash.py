@@ -83,21 +83,27 @@ with tabs[1]:
         with cols[2]:
             DownloadComponent().render_bigquery_update(raw_data, bq_module=bq_module, target_table="raw.users", write_type="merge")
 
-
-
 with tabs[2]:
     st.markdown("## Jobber")
     data = api.fetch_work_requests(from_date = (date.today() - timedelta(days=30)),)
-    #st.json(data)
+    team_users = api.get_teams()
+    df_team_users = pd.DataFrame(team_users)
+    #st.dataframe(team_users, use_container_width=True)
+    if "id" not in df_team_users.columns:
+        st.error("id column not found in team users data")
+    #st.dataframe(data, use_container_width=True)
     for i in data:
         if i.get("desired_start_date") >= str(date.today()):
-            if st.button(f"{i.get('desired_start_date')}: \t {i.get('title')} - {i.get('location')} - {i.get('estimated_hours')} timer", key=i['id']):
+            if st.button(f"{i.get('desired_start_date')}: \
+                         \t {i.get('title')} - {i.get('location')} - \
+                         {i.get('estimated_hours')} timer", key=i['id']):
                 with st.container(border=True,):
                     job_data = api.fetch_job_applications(work_request_id=i['id'])
                     df_r = pd.DataFrame(job_data).loc[:,["user_id","user_first_name", "user_last_name", "user_email"]]
                     df = pd.merge(df_r, raw_data[["id","date_of_birth"]], left_on="user_id", right_on="id", how="left", suffixes=("","_profile"))
+                    df = pd.merge(df, df_team_users[["id","team_name",]], left_on="user_id", right_on="id", how="left")
                     df["role"] = df["date_of_birth"].apply(lambda x: api.apply_role(x) if pd.notnull(x) else "unknown")
-                    df.drop(columns=["id"], inplace=True)
+                    df.drop(columns=["id"], inplace=True, errors='ignore')
                     st.dataframe(df, use_container_width=True)
                     cols  = st.columns(3)
                     with cols[0]:

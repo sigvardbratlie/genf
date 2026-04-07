@@ -11,7 +11,7 @@ import logging
 from abc import ABC, abstractmethod
 from .models import JobLog, User, WorkRequest, HistoricalJobEntry
 import numpy as np
-
+import requests
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -545,7 +545,7 @@ class SupaBaseApi(DatabaseModule):
         except Exception as e:
             print(f"Error fetching work requests: {e}")
             raise
-
+ 
     @st.cache_data(ttl=600,show_spinner=False)
     def fetch_job_applications(_self,
        
@@ -588,6 +588,20 @@ class SupaBaseApi(DatabaseModule):
             print(f"Error fetching job applications: {e}")
             raise
 
+    @st.cache_data(ttl=600,show_spinner=False)
+    def get_teams(_self,):
+        url = "https://nmsejeaoxglvbbhftean.supabase.co/functions/v1/admin-get-users"
+        headers = {
+            "x-api-key": "gflow_57c0afe8ebeb78ea3cc84412e6d5a94fd97aca7a1d0bca93"
+        }
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            return response.json().get("users")
+        except Exception as e:
+            logger.error(f"Error fetching teams: {e}")
+            raise
+    
     def build_combined(self,):
         bc_m = self.fetch_profiles()
         bc_m = bc_m.loc[bc_m["role"] != "parent", :].drop(columns = ["role"]).copy()
