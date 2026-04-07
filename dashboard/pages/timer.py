@@ -71,6 +71,10 @@ with hours:
     st.dataframe(dfg.style.format({"cost":"{:,.0f} NOK",
                                    "hours_worked":"{:,.1f}",
                                    "units_completed":"{:,.0f}"}),use_container_width=True,height=700)
+    
+    
+    
+    
     # ========================
     #      DOWNLOAD DATA
     # ========================
@@ -82,4 +86,46 @@ with hours:
         DownloadComponent().render_xlsx_download(dfg, filename=f"timer_og_lønn_{st.session_state.dates[0]}_til_{st.session_state.dates[1]}.xlsx", )
         
 st.divider()
-season = st.container()
+
+def qc(row):
+        date_of_week = calendar.day_name[row["date_completed"].weekday()].lower()
+        if row["role"] in ["genf"]:
+            if date_of_week in ["saturday","sunday"] and row["hours_worked"] > 4.5:
+                return True
+            if date_of_week in ["monday","tuesday","wednesday","thursday","friday"] and row["hours_worked"] > 2.5:
+                return True
+            return False
+        else:
+            return False
+
+# df["qc_flag"] = df.apply(qc, axis=1)
+# with st.expander("Vis registreringer som overgår normale timer", 
+#                     ):
+#     st.markdown("Maks antall timer per dag er normalt 2.5 for vanlige dager og 4.5 for helg. \
+#                 Dette gjelder for genf-roller. Andre roller har ingen grense satt.")
+#     for date, dfg in df.loc[df["qc_flag"] == True].groupby("date_completed"):
+#         st.write(f"**{date} ({calendar.day_name[date.weekday()]})**")
+#         st.dataframe(dfg[["worker_name","hours_worked","work_type"]])
+
+threshold = 0.5
+def har_avvik(dfg, threshold):                                                                                                                         
+      if dfg["work_type"].iloc[0] in ["annet_jobbhvit"]:                                                                                      
+          return False                                                                                                                        
+      median = dfg["hours_worked"].median()
+      return not dfg.loc[dfg["hours_worked"] > median * (1 + threshold)].empty                                                                
+
+with st.expander("Vis avvik fra de andre i gruppen", expanded=False):
+    avvik = sum(1 for _, dfg in df.groupby(["date_completed", "work_type"]) if har_avvik(dfg, threshold))  
+    
+    st.markdown(f"Viser registreringer hvor det er avvik i antall timer for samme arbeidstype og dato. Totalt avvik: {avvik}")
+    for (date, work_type), dfg in df.groupby(["date_completed","work_type"]):
+        if dfg["hours_worked"].nunique() > 1:
+            
+            median = dfg["hours_worked"].median()
+            warning_df = dfg.loc[dfg["hours_worked"] > median * (1 + threshold), ["worker_name","hours_worked"]]
+            if not warning_df.empty and work_type not in ["annet_jobbhvit"]:
+                st.divider()
+                st.markdown(f"Avvik i timer for 👷🏼‍♂️ **{work_type}** den 📅 **{date.date()}** ({calendar.day_name[date.weekday()]}):")
+                for _, row in warning_df.iterrows():
+                    st.write(f" * {row['worker_name']}:  {row['hours_worked']} timer, median er {median:.1f} timer.")
+                st.dataframe(dfg[["worker_name","work_type","hours_worked",]])
