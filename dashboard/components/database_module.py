@@ -174,6 +174,20 @@ class DatabaseModule(ABC):
         return " ".join(work_type.split("_")[1:]) if "_" in work_type and len(work_type.split("_")) > 1 else work_type
     
     
+    def apply_season(self, date_input : datetime | date) -> str:
+        if isinstance(date_input, str):
+            try:
+                date_input = datetime.strptime(date_input, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError("Invalid date format. Please use YYYY-MM-DD.")
+        if not isinstance(date_input, (pd.Timestamp, pd.DatetimeTZDtype, pd.DatetimeTZDtype, datetime, date)):
+            raise ValueError("Input must be a datetime or date object")
+        
+        if date_input.month >= 8:
+            return f"{str(date_input.year)[2:4]}/{str(date_input.year+1)[2:4]}"
+        else:
+            return f"{str(date_input.year-1)[2:4]}/{str(date_input.year)[2:4]}"
+    
     def apply_cost(self,row : pd.Series, rates : list,) -> int:
         season = row["season"] if "season" in row else None
         for rate in rates:
@@ -219,7 +233,7 @@ class BigQueryModule(DatabaseModule):
         return df
     
     def load_registrations(self):
-        query = """SELECT * FROM registrations.season_22_25"""
+        query = """SELECT * FROM registrations.seasons"""
         data = self.run_query(query)
         data.replace({"<NA>": None, pd.NaT: None,np.nan : None}, inplace=True)
         data["hours_worked"] = pd.to_numeric(data["hours_worked"], errors="coerce")
@@ -227,21 +241,133 @@ class BigQueryModule(DatabaseModule):
         data["work_type"] = data["work_type"].fillna("unknown")
         [HistoricalJobEntry.model_validate(record) for record in data.to_dict(orient="records")] if not data.empty else None
         return data
-        
     
-    def load_active_users(self, threshold = 1000):
-        query =  f'''SELECT s.person_id,r.email 
-            FROM `genf-446213.registrations.season_22_25` r
-            JOIN members.specs s ON s.email = r.email
-            GROUP BY r.email, s.person_id
-            HAVING SUM(cost)>{threshold};'''
-        return self.run_query(query)
+    
+
+    def transfer_to_hours(self, ):
+        #read
+        dfh = self.run_query("SELECT * FROM raw.hours LIMIT 5")
+        query = """SELECT 
+                        j.*,
+                        u.date_of_birth,
+                        u.age_category
+                        FROM raw.job_logs j
+                        JOIN raw.users u ON u.id = j.worker_id
+                        WHERE NOT EXISTS 
+                        (SELECT 1 FROM raw.hours h WHERE h.id = j.id)
+                        """
+        df = self.run_query(query)
+        if not isinstance(df, pd.DataFrame):
+            logger.error(f"Query did not return a DataFrame. Got {type(df)} instead.")
+            return 
+        if df.empty:
+            logger.info("No new job logs to transfer to hours.")
+            return
+
+        #transform
+        role_map = {"O18" : "mentor", "U18" : "hjelpementor", "U16" : "genf"}
+        df["age_category"] = df["age_category"].apply(lambda x : role_map.get(x, "unknown"))
+        df.rename(columns={"age_category": "role"}, inplace=True)
+
+        df["worker_name"] = df["worker_first_name"] + " " + df["worker_last_name"]
+        df["worker_name"] = df["worker_first_name"] + " " + df["worker_last_name"]
+        df["date_completed"] = pd.to_datetime(df["date_completed"], unit="s", utc=True).astype("datetime64[us, UTC]")
+        df["date_of_birth"] = pd.to_datetime(df["date_of_birth"], utc=True).astype("datetime64[us, UTC]")
+        drop = list(set(df.columns) - set(dfh.columns))
+        df.drop(columns=drop, inplace=True)
+        df["season"] = df["date_completed"].apply(lambda x: self.apply_season(x))
+
+        #load
+        staging_table_id = "genf-446213.raw.hours_staging"
+        main_table_id = "genf-446213.raw.hours"
+        try:
+            job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE",
+                                                schema = [bigquery.SchemaField("id", "STRING"),
+                                                        bigquery.SchemaField("worker_id", "STRING"),
+                                                        bigquery.SchemaField("work_type", "STRING"),
+                                                        bigquery.SchemaField("date_completed", "TIMESTAMP"),
+                                                        bigquery.SchemaField("hours_worked", "FLOAT"),
+                                                        bigquery.SchemaField("units_completed", "INTEGER"),
+                                                        bigquery.SchemaField("comments", "STRING"),
+                                                        bigquery.SchemaField("role", "STRING"),
+                                                        bigquery.SchemaField("date_of_birth", "TIMESTAMP"),
+                                                        bigquery.SchemaField("work_leader", "STRING"),
+                                                        bigquery.SchemaField("work_type_id", "STRING"),
+                                                        bigquery.SchemaField("worker_name", "STRING")
+                                                        ])
+            
+            load_job = self.client.load_table_from_dataframe(df, staging_table_id, job_config=job_config)
+            load_job.result()
+            print("Data loaded to staging table successfully.")
+        except Exception as e:
+            print(f"Error loading data to staging table: {e}")
+
+        merge_sql = f"""
+            MERGE `{main_table_id}` T
+            USING `{staging_table_id}` S
+            ON T.id = S.id
+            
+            WHEN MATCHED THEN
+            UPDATE SET 
+                T.worker_id = S.worker_id,
+                T.work_type = S.work_type,
+                T.date_completed = S.date_completed,
+                T.hours_worked = S.hours_worked,
+                T.units_completed = S.units_completed,
+                T.role = S.role,
+                T.date_of_birth = S.date_of_birth,
+                T.comments = S.comments,
+                T.work_leader = S.work_leader,
+                T.work_type_id = S.work_type_id,
+                T.worker_name = S.worker_name
+                
+            WHEN NOT MATCHED THEN
+            INSERT (id, worker_id, work_type, date_completed, hours_worked, units_completed, role, date_of_birth, comments, work_leader, work_type_id, worker_name)
+            VALUES (S.id, S.worker_id, S.work_type, S.date_completed, S.hours_worked, S.units_completed, S.role, S.date_of_birth, S.comments, S.work_leader, S.work_type_id, S.worker_name)
+        """
+        try:
+            query_config = bigquery.QueryJobConfig()
+            query_job = self.client.query(merge_sql, job_config=query_config)
+            query_job.result()
+            print("Merge completed successfully.")
+        except Exception as e:
+            print(f"Error during merge: {e}")
     
     def load_rates(self):
         query = """SELECT * FROM admin.rates"""
         data = self.run_query(query)
         return data
 
+    def get_year_count(self,):
+        query = """SELECT 
+                EXTRACT(YEAR FROM birthdate) AS birth_year, 
+                COUNT(*) AS count
+                FROM `members.all`
+                GROUP BY birth_year
+                ORDER BY birth_year;"""
+        data = self.run_query(query)
+        return data
+    
+    def get_season_count(self,):
+        df = self.client.query("""SELECT DISTINCT season FROM raw.hours""").to_dataframe()
+        seasons = df["season"].tolist()
+
+        y = self.client.query('''SELECT 
+            EXTRACT(YEAR FROM birthdate) AS birth_year, 
+            COUNT(*) AS count
+        FROM `members.all`
+        GROUP BY birth_year
+        ORDER BY birth_year;''').to_dataframe()
+
+        result = {}
+        for season in seasons:
+            y["role"] = y["birth_year"].apply(lambda x : self.parse_role(x, season))
+            result[season] = y.groupby("role").agg({"count" : "sum"}).reset_index()
+        r = pd.concat(result).reset_index()
+        r.drop(columns=["level_1"], inplace=True)
+        r.rename({"level_0" : "season",}, inplace=True, axis=1)
+        return r
+    
     def load_camp_rates(self):
         query = """SELECT * FROM admin.camp_rates"""
         data = self.run_query(query)
@@ -453,9 +579,12 @@ class SupaBaseApi(DatabaseModule):
             
             if data is None:
                 return pd.DataFrame()
-            
-            return pd.DataFrame(data)
-        
+            df = pd.DataFrame(data)
+            string_cols = ["activity_id", "activity_name"]
+            if set(string_cols).issubset(df.columns):
+                df[string_cols] = df[string_cols].fillna("").astype("string")
+            return df
+
         except Exception as e:
             logger.error(f"Error fetching job logs: {e}")
             raise

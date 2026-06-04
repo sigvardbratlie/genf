@@ -199,12 +199,14 @@ class HistoricalJobEntry(BaseModel):
     units_completed: Optional[int] = None # Ofte None eller 0
     
     date_of_birth: Optional[date] = None    # NaT → None
-    bank_account_number: Optional[str] = None  # Ofte None, ellers streng (ikke float)
-    email: Optional[str] = None
     
     role: Literal["genf", "mentor", "hjelpementor"] = "genf"  #
     work_type: str                          # Eks: bccof_vask, bccof_rigg, ...
     season: str                             # Format: '23/24', '24/25' osv.
+    work_leader: Optional[str] = None
+    worker_id  : Optional[UUID] = None
+    work_type_id  : Optional[UUID] = None
+    id: Optional[UUID] = None
 
     # Valgfri: normaliserte/berikede egenskaper
     @property
@@ -243,30 +245,30 @@ class HistoricalJobEntry(BaseModel):
             return v.date()
         return v
 
-    @field_validator("bank_account_number", mode="before")
-    @classmethod
-    def normalize_bank_account(cls, v):
-        if v is None:
-            return None
+    # @field_validator("bank_account_number", mode="before")
+    # @classmethod
+    # def normalize_bank_account(cls, v):
+    #     if v is None:
+    #         return None
         
-        # pandas → float
-        if isinstance(v, float):
-            if math.isnan(v) or v == 0:
-                return None
-            # Bruk str() først – mye tryggere enn int(float)
-            s = f"{v:.0f}"              # fjerner .0 og vitenskapelig notasjon
-            return s if s.isdigit() else None
+    #     # pandas → float
+    #     if isinstance(v, float):
+    #         if math.isnan(v) or v == 0:
+    #             return None
+    #         # Bruk str() først – mye tryggere enn int(float)
+    #         s = f"{v:.0f}"              # fjerner .0 og vitenskapelig notasjon
+    #         return s if s.isdigit() else None
         
-        # Hvis det allerede er int eller streng
-        if isinstance(v, int):
-            return str(v)
+    #     # Hvis det allerede er int eller streng
+    #     if isinstance(v, int):
+    #         return str(v)
         
-        if isinstance(v, str):
-            # Fjern punktum/mellomrom osv om ønskelig
-            cleaned = v.replace(".", "").replace(" ", "")
-            return cleaned if cleaned.isdigit() else v.strip()
+    #     if isinstance(v, str):
+    #         # Fjern punktum/mellomrom osv om ønskelig
+    #         cleaned = v.replace(".", "").replace(" ", "")
+    #         return cleaned if cleaned.isdigit() else v.strip()
         
-        return str(v).strip()
+    #     return str(v).strip()
 
     @field_validator("units_completed", "hours_worked", mode="before")
     @classmethod
@@ -310,8 +312,6 @@ class HistoricalJobEntry(BaseModel):
 
         return None
 
-    # Fjern den gamle kombinerte validatoren for units_completed + hours_worked
-    # eller behold kun for hours_worked hvis du vil
     @field_validator("hours_worked", mode="before")
     @classmethod
     def clean_hours(cls, v):

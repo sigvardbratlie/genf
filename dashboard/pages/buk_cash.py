@@ -25,6 +25,7 @@ with tabs[0]:
     st.info(f"Viser for periode {st.session_state.dates[0]} til {st.session_state.dates[1]}")
     # ==== DATA CLEANING =====
     df = api.fetch_job_logs(from_date=st.session_state.dates[0], to_date=st.session_state.dates[1])
+    st.markdown(f"First registation : {df['date_completed'].min()} - Last registration: {df['date_completed'].max()}")
     st.dataframe(df, use_container_width=True)
     
     

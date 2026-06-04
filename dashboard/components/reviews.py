@@ -143,6 +143,48 @@ class SeasonBase:
             display.columns = [period_label, "Rolle", f"Snitt {'NOK' if metric == 'cost' else 'timer'}", "Antall"]
             st.dataframe(display, use_container_width=True, hide_index=True)
 
+    def create_season_data(self,df :  pd.DataFrame):
+        r = self.bq.get_season_count()
+        avg_data = df.groupby(["season","role"]).agg({"cost" : "sum"}).reset_index()
+        comb = pd.merge(avg_data, r, on=["season","role"], how="left").fillna(0)
+        comb = comb.loc[comb["role"].isin(["genf", "hjelpementor"]), :]
+        comb["avg_cost_per_person"] = comb["cost"] / comb["count"]
+
+        def apply_camp_cost(season : str, role : str):
+            if role in ["genf", "hjelpementor"]:
+                return self._get_camp_price_season(season, u18=False)
+            elif role == "mentor":
+                return self._get_camp_price_season(season, u18=True)
+            else:
+                return 0.0
+            
+        comb["camp_cost"] = comb.apply(lambda row: apply_camp_cost(row["season"], row["role"]), axis=1)
+        comb["total_camp_cost"] = comb["count"] * comb["camp_cost"]
+        return comb
+    
+    
+    def render_avg_per_period_genf_only(self, data: pd.DataFrame):
+        comb = self.create_season_data(data)
+        
+        st.markdown(f"## Gjennomsnitt per Sesong for Genf og Hjelpementorer")
+        
+        fig = px.bar(
+            comb,
+            x=comb["season"].astype(str),
+            y="avg_cost_per_person",
+            color="role",
+            barmode="group",
+            text=comb["avg_cost_per_person"].round(0).astype(int),
+            labels={
+                "avg_cost_per_person": "Gjennomsnitt opptjent (NOK)",
+                "x": "Sesong",
+                "role": "Rolle",
+            },
+        )
+        fig.update_traces(textposition="outside")
+        st.plotly_chart(fig, use_container_width=True, key=f"{self.__class__.__name__}_avg_per_season_role")
+
+
 
 class SeasonalReviewComponent(SeasonBase):
     def __init__(self):
@@ -243,6 +285,15 @@ class SeasonalReviewComponent(SeasonBase):
         fig.update_layout(barmode="stack")
         st.plotly_chart(fig, use_container_width=True, key="seasonal_active_per_role")
 
+    def render_genf_goal_comparison(self, data: pd.DataFrame):
+        st.markdown("## Opptjent vs Mål for Genf og Hjelpementorer")
+        comb = self.create_season_data(data)
+        key = f"{self.__class__.__name__}_genf_goal_comparison"
+        fig = go.Figure()
+        fig.add_trace(go.Bar(x=comb["season"].astype(str), y=comb["total_camp_cost"], name="Mål", marker_color="indianred"))
+        fig.add_trace(go.Bar(x=comb["season"].astype(str), y=comb["cost"], name="Opptjent", marker_color="lightsalmon"))
+        st.plotly_chart(fig, use_container_width=True, key=key)
+
     def render_page(self):
         if self.rates.empty:
             st.error("Rater ikke tilgjengelige (st.session_state.rates mangler).")
@@ -261,9 +312,11 @@ class SeasonalReviewComponent(SeasonBase):
         active_workers = bar_data[["worker_name", "season"]].drop_duplicates()
         df_active = df.merge(active_workers, on=["worker_name", "season"], how="inner")
 
-        self.render_avg_per_period_per_role(bar_data, "season")
+        #self.render_avg_per_period_per_role(bar_data, "season")
+        self.render_avg_per_period_genf_only(df)
         st.divider()
-        self.render_active_members(bar_data)
+        #self.render_active_members(bar_data)
+        self.render_genf_goal_comparison(df)
         st.divider()
         self.render_gruppe_stack(df_active)
         st.divider()

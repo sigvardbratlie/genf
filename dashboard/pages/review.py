@@ -1,11 +1,22 @@
 import streamlit as st
 from dashboard import init
 from components import SeasonalReviewComponent,SidebarComponent, AnnualReviewComponent
+from components import get_bigquery_module
 import logging
 logger = logging.getLogger(__name__)
 init()
 
 SidebarComponent().sidebar_setup(disable_seasonpicker=True,disable_datepicker=True, disable_custom_datepicker=True)
+
+sync_data = st.button("Synkroniser data", icon="🔄")
+if sync_data:
+    bq = get_bigquery_module()
+    try:
+        bq.transfer_to_hours()
+        st.success("Data synkronisert!")
+    except Exception as e:
+        st.error(f"Det skjedde en feil under synkronisering av data: {e}")
+        logger.error(f"Feil under synkronisering av data: {e}", exc_info=True)
 
 tabs = st.tabs(["Sesong", "År"])
 with tabs[0]:
