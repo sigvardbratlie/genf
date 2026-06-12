@@ -232,8 +232,17 @@ class BigQueryModule(DatabaseModule):
         df = query_job.result().to_dataframe()
         return df
     
-    def load_registrations(self):
+    def load_registrations(self,from_date : str | None = None , to_date : str | None = None) -> pd.DataFrame:
         query = """SELECT * FROM registrations.seasons"""
+        if from_date and to_date:
+            query = f"""SELECT * FROM registrations.seasons
+                        WHERE date_completed >= '{from_date}' AND date_completed <= '{to_date}'"""
+        elif from_date and not to_date:
+            query = f"""SELECT * FROM registrations.seasons
+                        WHERE date_completed >= '{from_date}'"""
+        elif to_date and not from_date:
+            query = f"""SELECT * FROM registrations.seasons
+                        WHERE date_completed <= '{to_date}'"""
         data = self.run_query(query)
         data.replace({"<NA>": None, pd.NaT: None,np.nan : None}, inplace=True)
         data["hours_worked"] = pd.to_numeric(data["hours_worked"], errors="coerce")

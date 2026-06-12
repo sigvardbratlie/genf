@@ -200,9 +200,9 @@ class HistoricalJobEntry(BaseModel):
     
     date_of_birth: Optional[date] = None    # NaT → None
     
-    role: Literal["genf", "mentor", "hjelpementor"] = "genf"  #
+    role: Literal["genf", "mentor", "hjelpementor","unknown"] = "genf"  #
     work_type: str                          # Eks: bccof_vask, bccof_rigg, ...
-    season: str                             # Format: '23/24', '24/25' osv.
+    season: str | None                          # Format: '23/24', '24/25' osv.
     work_leader: Optional[str] = None
     worker_id  : Optional[UUID] = None
     work_type_id  : Optional[UUID] = None
