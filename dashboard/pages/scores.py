@@ -91,6 +91,7 @@ with application:
 
     st.markdown("Hvem er rasktest til å melde seg på en jobb?")
     application_speed = df.groupby("user_email")["diff_from_approve_date"].agg(["mean", "count"])
+    application_speed = application_speed.loc[application_speed["count"] >= 5, :]
     st.dataframe(application_speed.sort_values(by = "mean", ascending=True))
 
     st.markdown("Hvem melder seg på senest?")
