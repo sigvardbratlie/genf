@@ -20,10 +20,11 @@ def set_cwd():
             st.stop()
 
 set_cwd()
-from dashboard import init
+from dashboard import init, ensure_max_date_range
 from components import SidebarComponent,DownloadComponent,get_supabase_api
 
 init()
+#ensure_max_date_range()
 
 st.title("Timer og lønn")
 st.divider()
@@ -34,6 +35,7 @@ df_raw = api.build_combined()
 df_raw['gruppe'] = df_raw['work_type'].apply(lambda wt: api.mk_gruppe(wt))
 df_raw["prosjekt"] = df_raw["work_type"].apply(lambda wt: api.mk_prosjekt(wt))
 df = api.filter_df_by_dates(df_raw.copy())
+
 
 sel_cols = st.columns(2)
 

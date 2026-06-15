@@ -118,3 +118,7 @@ class SidebarComponent:
                 st.session_state.clear()
                 st.rerun()
 
+            refresh = st.button("Refresh Data",icon="🔄")
+            if refresh:
+                st.rerun()
+

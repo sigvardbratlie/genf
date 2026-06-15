@@ -5,7 +5,7 @@ from datetime import timedelta, date
 from io import BytesIO
 import logging
 
-from dashboard import init
+from dashboard import init, ensure_max_date_range
 from components import SidebarComponent, get_supabase_api, DownloadComponent, get_bigquery_module
 
 logging.basicConfig(level=logging.INFO)
@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 init()
+#ensure_max_date_range()
 api = get_supabase_api()
 bq_module = get_bigquery_module()
 SidebarComponent().sidebar_setup(disable_datepicker=False, disable_custom_datepicker=False)   

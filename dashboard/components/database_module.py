@@ -87,9 +87,9 @@ class DatabaseModule(ABC):
         else:
             self.start_date, self.end_date = dates
 
-        #print("SELECTED DATES:", self.start_date, self.end_date)
-        #st.info(f"Filtering data by selected dates: {self.start_date} to {self.end_date}")
-        #st.info(f'MIN DATE IN DATA: {df[date_col].min()}, MAX DATE IN DATA: {df[date_col].max()}')
+        # st.info(f"Filtering data by selected dates: {self.start_date} to {self.end_date}")
+        # st.info(f'MIN DATE IN DATA: {df[date_col].min()}, MAX DATE IN DATA: {df[date_col].max()}')
+        # st.info(f'Antall rader: {len(df)} før filtrering')
         
         try:
             df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
@@ -592,6 +592,12 @@ class SupaBaseApi(DatabaseModule):
             string_cols = ["activity_id", "activity_name"]
             if set(string_cols).issubset(df.columns):
                 df[string_cols] = df[string_cols].fillna("").astype("string")
+            if len(df) == 1000:
+                logger.warning("Fetched 1000 records, which may indicate that the result is truncated. Please limit the search")
+                st.warning("Fetched 1000 records, which may indicate that the result is truncated. Please limit the search in the date filter.")
+            if df.empty:
+                logger.info("No job logs found for the given date range.")
+                st.warning("No job logs found for the given date range.")
             return df
 
         except Exception as e:
@@ -743,7 +749,7 @@ class SupaBaseApi(DatabaseModule):
     def build_combined(self,):
         bc_m = self.fetch_profiles()
         bc_m = bc_m.loc[bc_m["role"] != "parent", :].drop(columns = ["role"]).copy()
-        df_bc = self.fetch_job_logs("2026-01-01")
+        df_bc = self.fetch_job_logs(from_date = st.session_state.get("dates", [None, None])[0], to_date = st.session_state.get("dates", [None, None])[1])
         df_bc["season"] = "25/26"
         bc_m["role"] = bc_m["date_of_birth"].apply(lambda x: self.apply_role(x, season=st.session_state.get("season", None)))
         df = pd.merge(df_bc, bc_m.loc[:,['id','email',"bank_account_number","role"]], left_on='worker_id', right_on='id', how='left')
