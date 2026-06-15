@@ -5,7 +5,7 @@ from datetime import timedelta, date
 from io import BytesIO
 import logging
 
-from dashboard import init, ensure_max_date_range
+from dashboard import init
 from components import SidebarComponent, get_supabase_api, DownloadComponent, get_bigquery_module
 
 logging.basicConfig(level=logging.INFO)

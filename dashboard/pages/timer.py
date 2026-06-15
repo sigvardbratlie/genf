@@ -20,7 +20,7 @@ def set_cwd():
             st.stop()
 
 set_cwd()
-from dashboard import init, ensure_max_date_range
+from dashboard import init
 from components import SidebarComponent,DownloadComponent,get_supabase_api
 
 init()
