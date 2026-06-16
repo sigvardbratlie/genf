@@ -52,9 +52,9 @@ with most_hours:
     st.header("Hvem har jobbet mest?")
     df_25 = df[df["date_completed"].dt.year == 2025]
     st.markdown("The person with the most hours 2025")
-    hours_by_person = df_25.groupby("email")["hours_worked"].sum()
-    hours_by_person = hours_by_person.sort_values(ascending=False).reset_index()
-    st.dataframe(hours_by_person.head(5))
+    hours_by_person_25 = df_25.groupby("email")["hours_worked"].sum()
+    hours_by_person_25 = hours_by_person_25.sort_values(ascending=False).reset_index()
+    st.dataframe(hours_by_person_25.head(5))
     
 
     df_26 = df[df["date_completed"].dt.year == 2026]
@@ -68,6 +68,17 @@ with most_hours:
     comb = comb.sort_values(ascending=False).reset_index()
     st.markdown("The person with the most hours total")
     st.dataframe(comb.head(5))
+
+    weight = st.slider("Vekt på fordeling mellom timer og forbedring", min_value=0, max_value=100, value=50)
+    imp = pd.merge(hours_by_person_25, hours_by_person_26, on="email", how="inner", suffixes=("_2025", "_2026"))
+    imp = imp.loc[(imp["hours_worked_2025"] > 10) & (imp["hours_worked_2026"] > 10), :]
+    imp["change"] = ((imp["hours_worked_2026"] - imp["hours_worked_2025"]) / imp["hours_worked_2025"])
+    imp["total"] = imp["hours_worked_2025"] + imp["hours_worked_2026"]
+    #imp["total_rank"] = imp["total"].rank(ascending=False)
+    #imp["change_rank"] = imp["change"].rank(ascending=False)
+    imp["score"] = ((weight/100) * imp["change"] * 100 + ((100-weight)/100) * imp["total"]).round(0)
+    imp.sort_values(by="score", ascending=False, inplace=True)
+    st.dataframe(imp.head(10))
 
 application = st.expander("Hvem er raskest til å melde seg på jobber?", expanded=False)
 with application:
