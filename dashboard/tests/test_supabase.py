@@ -26,7 +26,7 @@ def test_build_combined():
         api.fetch_profiles = Mock(return_value=df_profiles)
         api.fetch_job_logs = Mock(return_value=df_job_logs)
 
-        df = api.build_combined()
+        df = api.build_combined(from_date="2026-01-01", to_date="2026-12-31", season="25/26", rates=[])
 
         print(df.info())
         print(df.isna().sum())

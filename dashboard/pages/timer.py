@@ -31,7 +31,7 @@ st.divider()
 SidebarComponent().sidebar_setup(disable_seasonpicker=True)
 
 api = get_supabase_api()
-df_raw = api.build_combined()
+df_raw = api.build_combined(from_date=st.session_state.dates[0], to_date=st.session_state.dates[1], season=st.session_state.get("season", None), rates=st.session_state.get("rates", []))
 df_raw['gruppe'] = df_raw['work_type'].apply(lambda wt: api.mk_gruppe(wt))
 df_raw["prosjekt"] = df_raw["work_type"].apply(lambda wt: api.mk_prosjekt(wt))
 df = api.filter_df_by_dates(df_raw.copy())

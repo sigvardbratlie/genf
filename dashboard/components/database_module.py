@@ -746,15 +746,15 @@ class SupaBaseApi(DatabaseModule):
             logger.error(f"Error fetching teams: {e}")
             raise
     
-    def build_combined(self,):
+    def build_combined(self,from_date : str | None = None, to_date : str | None = None, season : str | None = None,rates : list | None = None) -> pd.DataFrame:
         bc_m = self.fetch_profiles()
         bc_m = bc_m.loc[bc_m["role"] != "parent", :].drop(columns = ["role"]).copy()
-        df_bc = self.fetch_job_logs(from_date = st.session_state.get("dates", [None, None])[0], to_date = st.session_state.get("dates", [None, None])[1])
-        df_bc["season"] = "25/26"
-        bc_m["role"] = bc_m["date_of_birth"].apply(lambda x: self.apply_role(x, season=st.session_state.get("season", None)))
+        df_bc = self.fetch_job_logs(from_date = from_date, to_date = to_date)
+        df_bc["season"] = season or "25/26"
+        bc_m["role"] = bc_m["date_of_birth"].apply(lambda x: self.apply_role(x, season=season))
         df = pd.merge(df_bc, bc_m.loc[:,['id','email',"bank_account_number","role"]], left_on='worker_id', right_on='id', how='left')
         df["worker_name"] = df["worker_first_name"] + " " + df["worker_last_name"]
-        df["cost"] = df.apply(lambda row : self.apply_cost(row, st.session_state.get("rates", []),), axis = 1)
+        df["cost"] = df.apply(lambda row : self.apply_cost(row, rates), axis = 1)
         to_keep = ["worker_id",
                    "worker_name", 
                    "role",
